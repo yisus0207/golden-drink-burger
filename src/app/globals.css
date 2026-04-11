@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold: #D4A843;
+  --color-gold-light: #F0D78C;
+  --color-gold-dark: #B8922E;
+  --color-dark: #0A0A0A;
+  --color-dark-card: #141414;
+  --color-dark-surface: #1C1C1C;
+  --color-dark-border: #2A2A2A;
+  --color-dark-hover: #252525;
+  --color-status-pending: #EF4444;
+  --color-status-preparing: #F59E0B;
+  --color-status-ready: #22C55E;
+  --font-family-sans: 'Inter', system-ui, sans-serif;
+}
+
+html, body {
+  background-color: var(--color-dark);
+  color: #FAFAFA;
+  min-height: 100vh;
+}
+
+/* Scrollbar elegante */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold);
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseGold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 168, 67, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(212, 168, 67, 0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out forwards;
+}
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out forwards;
+}
+.animate-pulse-gold {
+  animation: pulseGold 2s infinite;
+}
+
+/* Efecto glass */
+.glass {
+  background: rgba(20, 20, 20, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 168, 67, 0.1);
+}
+
+/* Botón gold hover glow */
+.btn-gold {
+  background: var(--color-gold);
+  color: #000;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-gold:hover {
+  background: var(--color-gold-dark);
+  box-shadow: 0 8px 24px rgba(212, 168, 67, 0.25);
+}
+.btn-gold:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Input focus dorado */
+.input-dark {
+  background: var(--color-dark-surface);
+  border: 1px solid var(--color-dark-border);
+  color: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-dark:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(212, 168, 67, 0.1);
+}
+.input-dark::placeholder {
+  color: #555;
+}
