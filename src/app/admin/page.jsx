@@ -20,6 +20,10 @@ export default function AdminPage() {
   const [tables, setTables] = useState([]);
   const [newTable, setNewTable] = useState('');
 
+  // Gestión de Usuarios
+  const [users, setUsers] = useState([]);
+  const [userForm, setUserForm] = useState({ full_name: '', email: '', password: '', role: 'cajero' });
+
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
     title: '',
@@ -32,7 +36,16 @@ export default function AdminPage() {
     fetchProducts();
     fetchCategories();
     fetchTables();
+    fetchUsers();
   }, []);
+
+  async function fetchUsers() {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    setUsers(data || []);
+  }
 
   async function fetchProducts() {
     const { data } = await supabase
@@ -207,6 +220,68 @@ export default function AdminPage() {
     });
   }
 
+  // --- LÓGICA DE USUARIOS ---
+  async function handleCreateUser(e) {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // 1. Crear el usuario en Auth
+      // Usamos signUp con metadatos para el Trigger de perfiles
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userForm.email,
+        password: userForm.password,
+        options: {
+          data: {
+            full_name: userForm.full_name,
+            role: userForm.role
+          }
+        }
+      });
+
+      if (authError) throw authError;
+
+      // 2. Aseguramos el perfil (por si el trigger falla o no está actualizado)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: authData.user.id,
+          full_name: userForm.full_name,
+          email: userForm.email,
+          role: userForm.role
+        });
+
+      if (profileError) throw profileError;
+
+      alert('¡Usuario registrado con éxito!');
+      setUserForm({ full_name: '', email: '', password: '', role: 'cajero' });
+      fetchUsers();
+    } catch (error) {
+      console.error('Error creando usuario:', error);
+      alert('Error: ' + (error.message || 'No se pudo crear el usuario'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function performDeleteUser(id) {
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (!error) {
+      fetchUsers();
+      setModalConfig({ isOpen: false });
+    }
+  }
+
+  function deleteUser(profile) {
+    setModalConfig({
+      isOpen: true,
+      title: 'Eliminar Usuario',
+      message: `¿Estás seguro de eliminar a ${profile.full_name}? Se borrará de la lista de perfiles.`,
+      context: profile.email,
+      onConfirm: () => performDeleteUser(profile.id)
+    });
+  }
+
   return (
     <ProtectedRoute allowedRoles={['admin']}>
       <div className="min-h-screen bg-dark">
@@ -247,6 +322,16 @@ export default function AdminPage() {
               }`}
             >
               🪑 Mesas
+            </button>
+            <button
+              onClick={() => setTab('users')}
+              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                tab === 'users'
+                  ? 'bg-gold text-black'
+                  : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'
+              }`}
+            >
+              👥 Usuarios
             </button>
           </div>
 
@@ -506,6 +591,120 @@ export default function AdminPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* ====== TAB: USUARIOS ====== */}
+          {tab === 'users' && (
+            <div className="animate-fade-in">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Formulario Crear Usuario */}
+                <div className="lg:col-span-1">
+                  <div className="glass rounded-2xl p-6 sticky top-24">
+                    <h3 className="text-lg font-semibold text-gold mb-6 flex items-center gap-2">
+                      👤 Nuevo Usuario
+                    </h3>
+                    <form onSubmit={handleCreateUser} className="space-y-4">
+                      <div>
+                        <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Nombre Completo</label>
+                        <input
+                          type="text"
+                          value={userForm.full_name}
+                          onChange={(e) => setUserForm({ ...userForm, full_name: e.target.value })}
+                          className="w-full px-4 py-3 input-dark rounded-xl focus:border-gold/50 outline-none transition-all"
+                          required
+                          placeholder="Ej: Juan Perez"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Correo Electrónico</label>
+                        <input
+                          type="email"
+                          value={userForm.email}
+                          onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                          className="w-full px-4 py-3 input-dark rounded-xl focus:border-gold/50 outline-none transition-all"
+                          required
+                          placeholder="correo@ejemplo.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Contraseña</label>
+                        <input
+                          type="password"
+                          value={userForm.password}
+                          onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                          className="w-full px-4 py-3 input-dark rounded-xl focus:border-gold/50 outline-none transition-all"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">Rol del Sistema</label>
+                        <select
+                          value={userForm.role}
+                          onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                          className="w-full px-4 py-3 input-dark rounded-xl appearance-none bg-dark-surface cursor-pointer"
+                        >
+                          <option value="cajero">Cajero</option>
+                          <option value="cocinero">Cocinero</option>
+                          <option value="admin">Administrador</option>
+                        </select>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-4 btn-gold rounded-xl mt-4 font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-gold/10"
+                      >
+                        {loading ? 'Procesando...' : 'Registrar en el Sistema'}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                {/* Lista de Usuarios */}
+                <div className="lg:col-span-2">
+                  <div className="glass rounded-2xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-dark-border bg-black/20">
+                            <th className="text-left p-4 text-gray-400 font-medium text-xs uppercase tracking-wider">Nombre</th>
+                            <th className="text-left p-4 text-gray-400 font-medium text-xs uppercase tracking-wider">Email</th>
+                            <th className="text-left p-4 text-gray-400 font-medium text-xs uppercase tracking-wider">Rol</th>
+                            <th className="text-right p-4 text-gray-400 font-medium text-xs uppercase tracking-wider">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {users.map((profile) => (
+                            <tr key={profile.id} className="border-b border-dark-border/50 hover:bg-white/5 transition-colors">
+                              <td className="p-4 text-white font-medium">{profile.full_name || '—'}</td>
+                              <td className="p-4 text-gray-400 text-sm">{profile.email}</td>
+                              <td className="p-4">
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                  profile.role === 'admin' ? 'bg-gold/10 text-gold border-gold/20' :
+                                  profile.role === 'cocinero' ? 'bg-status-preparing/10 text-status-preparing border-status-preparing/20' :
+                                  'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                                }`}>
+                                  {profile.role}
+                                </span>
+                              </td>
+                              <td className="p-4 text-right">
+                                <button
+                                  onClick={() => deleteUser(profile)}
+                                  className="p-2 text-red-500/50 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                  title="Quitar acceso"
+                                >
+                                  🗑️
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
