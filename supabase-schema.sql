@@ -213,3 +213,33 @@ INSERT INTO public.products (name, price, category_id) VALUES
   ('Hamburguesa de Pollo', 22000, 2),
   ('Hamburguesa Golden Special', 32000, 2),
   ('Hamburguesa Veggie', 23000, 2);
+
+-- ============================================
+-- 7. TABLA DE MENSAJES (Chat en tiempo real)
+-- ============================================
+CREATE TABLE public.messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sender_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  sender_name TEXT NOT NULL,
+  sender_role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- ROW LEVEL SECURITY PARA MENSAJES
+-- ============================================
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+-- Todos los usuarios autenticados pueden ver los mensajes
+CREATE POLICY "Authenticated users can view messages" ON public.messages
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+
+-- Todos los usuarios autenticados pueden enviar mensajes
+CREATE POLICY "Authenticated users can insert messages" ON public.messages
+  FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+-- ============================================
+-- HABILITAR REALTIME PARA MENSAJES
+-- ============================================
+ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;

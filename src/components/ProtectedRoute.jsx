@@ -3,6 +3,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import ChatWidget from './ChatWidget';
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, profile, loading } = useAuth();
@@ -35,5 +36,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return null;
   }
 
-  return children;
+  return (
+    <div className="relative">
+      {children}
+      <ChatWidget />
+    </div>
+  );
 }
