@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { playNotificationSound } from '@/lib/sounds';
+import { playChatSound } from '@/lib/sounds';
 
 export default function ChatWidget() {
   const { user, profile } = useAuth();
@@ -60,10 +60,9 @@ export default function ChatWidget() {
         if (incomingMessage.sender_id !== user.id) {
           if (!isOpen) {
             setUnreadCount(prev => prev + 1);
-            playNotificationSound(); // Usamos el mismo sonido para alertas
+            playChatSound(); // Sonido distintivo para chat
           } else {
-            // Si está abierto, solo suena bajito o no suena. Aquí lo hacemos sonar siempre por ahora
-            playNotificationSound(); 
+            playChatSound(); 
           }
         }
       })

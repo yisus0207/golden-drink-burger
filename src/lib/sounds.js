@@ -41,3 +41,31 @@ export function playNotificationSound() {
     console.log('Audio no disponible');
   }
 }
+
+export function playChatSound() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Sonido de "burbuja" o "pop" rápido para chat
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    // Un tono suave tipo marimba/pop
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, audioContext.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.1);
+    
+    // Volumen rápido
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.2);
+  } catch (e) {
+    console.log('Audio no disponible para chat');
+  }
+}
