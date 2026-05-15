@@ -19,6 +19,7 @@ export default function PedidosPage() {
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState('');
   const [sending, setSending] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [notifications, setNotifications] = useState([]);
   const notifId = useRef(0);
@@ -159,6 +160,7 @@ export default function PedidosPage() {
       // Limpiar carrito y mostrar éxito
       setCart([]);
       setTableNumber('');
+      setIsCartOpen(false); // Cerrar carrito en móvil al enviar
       setSuccessMessage(`✅ Pedido #${order.id} enviado a cocina`);
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err) {
@@ -199,7 +201,7 @@ export default function PedidosPage() {
           ))}
         </div>
 
-        {/* Mensaje de éxito de envío (se mantiene el existente) */}
+        {/* Mensaje de éxito de envío */}
         {successMessage && (
           <div className="fixed top-20 right-4 z-50 animate-slide-in pointer-events-none">
             <div className="bg-gold/10 border border-gold/30 text-gold px-6 py-4 rounded-xl shadow-2xl backdrop-blur-sm">
@@ -208,9 +210,9 @@ export default function PedidosPage() {
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden">
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden relative">
           {/* Izquierda: Menú de productos */}
-          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto pb-24 lg:pb-6">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-white mb-1">Menú</h2>
               <p className="text-gray-500 text-sm">Selecciona los productos para el pedido</p>
@@ -222,7 +224,7 @@ export default function PedidosPage() {
               onSelect={setSelectedCategory}
             />
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mt-6 pb-24 lg:pb-0">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mt-6">
               {filteredProducts.map(product => (
                 <ProductCard
                   key={product.id}
@@ -240,19 +242,51 @@ export default function PedidosPage() {
             )}
           </div>
 
-          {/* Derecha: Carrito */}
-          <div className="lg:w-[400px] xl:w-[450px] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-dark-border bg-dark-surface z-20">
-            <Cart
-              items={cart}
-              total={total}
-              tables={tables}
-              tableNumber={tableNumber}
-              onTableNumberChange={setTableNumber}
-              onRemove={removeFromCart}
-              onUpdateQuantity={updateQuantity}
-              onSend={sendOrder}
-              sending={sending}
-            />
+          {/* Botón flotante del carrito (Solo Móvil) */}
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="lg:hidden fixed bottom-28 right-6 z-30 w-16 h-16 bg-gradient-to-tr from-gold to-yellow-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-110 transition-transform duration-300"
+          >
+            <span className="text-2xl">🛒</span>
+            {cart.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-dark animate-bounce">
+                {cart.length}
+              </span>
+            )}
+          </button>
+
+          {/* Derecha: Carrito (Overlay en móvil, Sidebar en Desktop) */}
+          <div 
+            className={`
+              fixed inset-0 z-40 bg-dark transform transition-transform duration-300 ease-in-out
+              lg:relative lg:transform-none lg:w-[400px] xl:w-[450px] lg:flex-shrink-0 lg:border-l border-dark-border
+              ${isCartOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
+            `}
+          >
+            {/* Cabecera del modal en móvil (Botón cerrar) */}
+            <div className="lg:hidden p-4 border-b border-dark-border flex justify-between items-center bg-dark-card">
+              <h3 className="font-bold text-white text-lg">Tu Pedido</h3>
+              <button 
+                onClick={() => setIsCartOpen(false)} 
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-dark hover:bg-white/10 text-gray-400 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="h-[calc(100vh-73px)] lg:h-full">
+              <Cart
+                items={cart}
+                total={total}
+                tables={tables}
+                tableNumber={tableNumber}
+                onTableNumberChange={setTableNumber}
+                onRemove={removeFromCart}
+                onUpdateQuantity={updateQuantity}
+                onSend={sendOrder}
+                sending={sending}
+              />
+            </div>
           </div>
         </div>
       </div>

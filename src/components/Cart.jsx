@@ -2,7 +2,7 @@
 
 export default function Cart({ items, total, tables = [], tableNumber, onTableNumberChange, onRemove, onUpdateQuantity, onSend, sending }) {
   return (
-    <div className="w-[380px] min-w-[340px] bg-dark-card border-l border-dark-border flex flex-col h-full">
+    <div className="w-full h-full flex flex-col bg-dark-card lg:border-l border-dark-border">
       {/* Header */}
       <div className="p-5 border-b border-dark-border">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
