@@ -36,7 +36,12 @@ export default function OrderCard({ order, onStatusChange }) {
     <div className={`rounded-xl border-2 ${config.border} ${config.bg} p-5 animate-fade-in transition-all duration-300 hover:scale-[1.02]`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-white font-bold text-xl">Pedido #{order.id}</span>
+        <div className="flex flex-col">
+          <span className="text-white font-bold text-xl">Pedido #{order.id}</span>
+          {order.table_number && (
+            <span className="text-gold font-medium text-sm">📍 {order.table_number}</span>
+          )}
+        </div>
         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${config.text} ${config.bg} border ${config.border} flex items-center gap-1.5`}>
           <span className={`w-2 h-2 rounded-full ${config.dot} animate-pulse`} />
           {config.label}

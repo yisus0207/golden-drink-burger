@@ -13,14 +13,17 @@ export default function PedidosPage() {
   const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [tables, setTables] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [cart, setCart] = useState([]);
+  const [tableNumber, setTableNumber] = useState('');
   const [sending, setSending] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     fetchCategories();
     fetchProducts();
+    fetchTables();
   }, []);
 
   async function fetchCategories() {
@@ -30,6 +33,14 @@ export default function PedidosPage() {
       .order('id');
     setCategories(data || []);
     if (data?.length > 0) setSelectedCategory(data[0].id);
+  }
+
+  async function fetchTables() {
+    const { data } = await supabase
+      .from('tables')
+      .select('*')
+      .order('id');
+    setTables(data || []);
   }
 
   async function fetchProducts() {
@@ -88,6 +99,7 @@ export default function PedidosPage() {
         .insert({
           status: 'pending',
           total,
+          table_number: tableNumber,
           created_by: user.id,
         })
         .select()
@@ -112,6 +124,7 @@ export default function PedidosPage() {
 
       // Limpiar carrito y mostrar éxito
       setCart([]);
+      setTableNumber('');
       setSuccessMessage(`✅ Pedido #${order.id} enviado a cocina`);
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err) {
@@ -172,6 +185,9 @@ export default function PedidosPage() {
           <Cart
             items={cart}
             total={total}
+            tables={tables}
+            tableNumber={tableNumber}
+            onTableNumberChange={setTableNumber}
             onRemove={removeFromCart}
             onUpdateQuantity={updateQuantity}
             onSend={sendOrder}

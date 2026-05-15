@@ -1,6 +1,6 @@
 'use client';
 
-export default function Cart({ items, total, onRemove, onUpdateQuantity, onSend, sending }) {
+export default function Cart({ items, total, tables = [], tableNumber, onTableNumberChange, onRemove, onUpdateQuantity, onSend, sending }) {
   return (
     <div className="w-[380px] min-w-[340px] bg-dark-card border-l border-dark-border flex flex-col h-full">
       {/* Header */}
@@ -66,6 +66,35 @@ export default function Cart({ items, total, onRemove, onUpdateQuantity, onSend,
         )}
       </div>
 
+      {/* Opciones Adicionales (Mesa) */}
+      {items.length > 0 && (
+        <div className="px-5 pt-3 pb-2 border-t border-dark-border">
+          <label className="block text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wide">
+            Selecciona la Mesa
+          </label>
+          <div className="grid grid-cols-4 gap-2">
+            {tables.map(t => (
+              <button
+                key={t.id}
+                onClick={() => onTableNumberChange(t.name)}
+                className={`py-3 rounded-xl text-sm font-bold transition-all border ${
+                  tableNumber === t.name
+                    ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(255,215,0,0.3)] scale-105'
+                    : 'bg-dark-surface text-gray-400 border-dark-border hover:border-gold/50 hover:text-white'
+                }`}
+              >
+                {t.name.replace('Mesa ', '')}
+              </button>
+            ))}
+            {tables.length === 0 && (
+              <p className="col-span-4 text-xs text-gray-500 text-center py-2">
+                No hay mesas configuradas. Añádelas desde admin.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Total + Enviar */}
       <div className="p-5 border-t border-dark-border space-y-4">
         <div className="flex justify-between items-center">
@@ -76,8 +105,8 @@ export default function Cart({ items, total, onRemove, onUpdateQuantity, onSend,
         </div>
         <button
           onClick={onSend}
-          disabled={items.length === 0 || sending}
-          className="w-full py-4 btn-gold rounded-xl text-lg flex items-center justify-center gap-2"
+          disabled={items.length === 0 || !tableNumber.trim() || sending}
+          className="w-full py-4 btn-gold rounded-xl text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {sending ? (
             <>

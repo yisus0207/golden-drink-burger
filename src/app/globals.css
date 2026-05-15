@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Sans:wght@700&family=Playfair+Display:wght@700&family=Outfit:wght@400;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -12,7 +13,11 @@
   --color-status-pending: #EF4444;
   --color-status-preparing: #F59E0B;
   --color-status-ready: #22C55E;
-  --font-family-sans: 'Inter', system-ui, sans-serif;
+  
+  --font-inter: 'Inter', system-ui, sans-serif;
+  --font-dm-sans: 'DM Sans', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
+  --font-outfit: 'Outfit', sans-serif;
 }
 
 html, body {

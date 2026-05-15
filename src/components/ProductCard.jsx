@@ -13,7 +13,12 @@ export default function ProductCard({ product, onAdd }) {
       </div>
 
       {/* Nombre */}
-      <h3 className="text-white font-medium text-sm mb-1 truncate">{product.name}</h3>
+      <h3 className="text-white font-medium text-sm truncate">{product.name}</h3>
+      
+      {/* Descripción (si existe) */}
+      <p className="text-gray-500 text-xs truncate mb-2 h-4">
+        {product.description || ''}
+      </p>
 
       {/* Precio */}
       <p className="text-gold font-bold text-lg mb-3">

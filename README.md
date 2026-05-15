@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍔 Golden Drink & Burger — Sistema POS Premium
 
-## Getting Started
+¡Bienvenido al sistema de gestión profesional para **Golden Drink & Burger**! Este proyecto es una plataforma de punto de venta (POS) de alto impacto, diseñada para ofrecer una experiencia fluida, rápida y estéticamente superior tanto para el personal como para los clientes.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🛠️ Stack Tecnológico
+El proyecto utiliza las tecnologías más modernas de 2026:
+
+*   **Framework:** [Next.js 16](https://nextjs.org/) (App Router) - El estándar de oro para aplicaciones web modernas.
+*   **Librería UI:** [React 19](https://react.dev/) - Aprovechando las últimas mejoras en renderizado y hooks.
+*   **Base de Datos y Backend:** [Supabase](https://supabase.com/) - PostgreSQL con capacidades de Realtime para pedidos instantáneos.
+*   **Estilos:** [Tailwind CSS 4](https://tailwindcss.com/) - Utilizando el nuevo motor `@theme` para una personalización profunda.
+*   **Autenticación:** Supabase Auth con roles personalizados (`admin`, `cajero`, `cocinero`).
+
+---
+
+## 🎨 Sistema de Diseño (UI/UX)
+El diseño sigue una estética **Premium Dark** con toques de **Glassmorphism**.
+
+### 🎨 Paleta de Colores
+| Token | Valor Hex | Uso |
+| :--- | :--- | :--- |
+| `gold` | `#D4A843` | Acentos principales, botones, logos. |
+| `gold-light` | `#F0D78C` | Estados hover y destacados suaves. |
+| `dark` | `#0A0A0A` | Fondo principal de la aplicación. |
+| `dark-card` | `#141414` | Fondos de tarjetas y contenedores. |
+| `dark-border`| `#2A2A2A` | Bordes sutiles y divisores. |
+
+### 🚥 Estados de Pedidos
+*   🔴 **Pendiente:** `#EF4444`
+*   🟠 **Preparando:** `#F59E0B`
+*   🟢 **Listo:** `#22C55E`
+
+### ✨ Efectos y Animaciones
+*   **Glassmorphism:** Uso de `backdrop-filter: blur(12px)` para un efecto de cristal elegante.
+*   **Animaciones:** Micro-interacciones suaves (`fadeIn`, `slideUp`, `pulseGold`).
+*   **Tipografía:** Inter (Sans-serif) para máxima legibilidad.
+
+---
+
+## 🏗️ Arquitectura del Proyecto
+```text
+src/
+├── app/              # Rutas y páginas (Next.js App Router)
+│   ├── admin/        # Gestión de productos y mesas
+│   ├── pedidos/      # Interfaz de caja y toma de pedidos
+│   ├── cocina/       # Tablero de control para chefs
+│   └── login/        # Acceso seguro
+├── components/       # Componentes UI reutilizables
+├── context/          # Manejo de estado global (Auth, Cart)
+├── lib/              # Configuraciones de clientes (Supabase)
+└── styles/           # Configuración global de CSS
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📊 Modelo de Datos (Supabase)
+La base de datos está normalizada para garantizar la integridad y escalabilidad:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1.  **`profiles`**: Almacena información de empleados y sus roles.
+2.  **`tables`**: Gestión de las mesas físicas en el local.
+3.  **`categories`**: Categorización del menú (Hamburguesas, Granizados, etc.).
+4.  **`products`**: Catálogo con precios, imágenes y disponibilidad.
+5.  **`orders`**: Registro maestro de pedidos con estado en tiempo real.
+6.  **`order_items`**: Detalle de cada producto dentro de un pedido.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🚀 Funcionalidades Actuales
+- [x] **Autenticación Segura:** Login con roles diferenciados.
+- [x] **Gestión Administrativa:** Panel para crear/editar productos, mesas y categorías.
+- [x] **Real-time:** Actualización instantánea de pedidos entre caja y cocina.
+- [x] **Diseño Responsive:** Optimizado para tablets y computadores de escritorio.
+- [x] **Control de Disponibilidad:** Activar/Desactivar productos del menú al instante.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📦 Instalación y Desarrollo
 
-## Deploy on Vercel
+1.  **Clonar el repositorio.**
+2.  **Instalar dependencias:**
+    ```bash
+    npm install
+    ```
+3.  **Configurar variables de entorno:**
+    Crear un archivo `.env.local` con:
+    ```env
+    NEXT_PUBLIC_SUPABASE_URL=tu_url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_key
+    ```
+4.  **Ejecutar el servidor:**
+    ```bash
+    npm run dev
+    ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Desarrollado con ❤️ para **Golden Drink & Burger**.

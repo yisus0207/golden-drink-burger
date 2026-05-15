@@ -20,7 +20,16 @@ CREATE TABLE public.profiles (
 );
 
 -- ============================================
--- 2. TABLA DE CATEGORÍAS
+-- 2. TABLA DE MESAS
+-- ============================================
+CREATE TABLE public.tables (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- 3. TABLA DE CATEGORÍAS
 -- ============================================
 CREATE TABLE public.categories (
   id SERIAL PRIMARY KEY,
@@ -28,7 +37,7 @@ CREATE TABLE public.categories (
 );
 
 -- ============================================
--- 3. TABLA DE PRODUCTOS
+-- 4. TABLA DE PRODUCTOS
 -- ============================================
 CREATE TABLE public.products (
   id SERIAL PRIMARY KEY,
@@ -37,22 +46,24 @@ CREATE TABLE public.products (
   category_id INTEGER REFERENCES public.categories(id) ON DELETE SET NULL,
   image_url TEXT,
   available BOOLEAN DEFAULT TRUE,
+  description TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================
--- 4. TABLA DE PEDIDOS
+-- 5. TABLA DE PEDIDOS
 -- ============================================
 CREATE TABLE public.orders (
   id SERIAL PRIMARY KEY,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'preparing', 'ready')),
   total DECIMAL(10,2) NOT NULL DEFAULT 0,
+  table_number TEXT,
   created_by UUID REFERENCES auth.users(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================
--- 5. TABLA DE ITEMS DEL PEDIDO
+-- 6. TABLA DE ITEMS DEL PEDIDO
 -- ============================================
 CREATE TABLE public.order_items (
   id SERIAL PRIMARY KEY,
@@ -83,6 +94,7 @@ CREATE TRIGGER on_auth_user_created
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
@@ -93,6 +105,22 @@ CREATE POLICY "Users can view all profiles" ON public.profiles
   FOR SELECT USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
+
+-- Tables: todos pueden ver
+CREATE POLICY "Anyone can view tables" ON public.tables
+  FOR SELECT USING (true);
+CREATE POLICY "Admins can insert tables" ON public.tables
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+CREATE POLICY "Admins can update tables" ON public.tables
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+CREATE POLICY "Admins can delete tables" ON public.tables
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- Categories: todos pueden ver
 CREATE POLICY "Anyone can view categories" ON public.categories
@@ -149,6 +177,12 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.order_items;
 -- ============================================
 -- DATOS INICIALES
 -- ============================================
+
+-- Mesas iniciales
+INSERT INTO public.tables (name) VALUES
+  ('Mesa 1'), ('Mesa 2'), ('Mesa 3'), ('Mesa 4'),
+  ('Mesa 5'), ('Mesa 6'), ('Mesa 7'), ('Mesa 8')
+ON CONFLICT DO NOTHING;
 
 -- Categorías
 INSERT INTO public.categories (name) VALUES
