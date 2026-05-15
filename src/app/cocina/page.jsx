@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -11,6 +11,18 @@ export default function CocinaPage() {
   const [orders, setOrders] = useState([]);
   const [completedOrders, setCompletedOrders] = useState([]);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const notifId = useRef(0);
+
+  function addNotification(order) {
+    const id = ++notifId.current;
+    const mesa = order.table_number || 'Sin mesa';
+    setNotifications(prev => [...prev, { id, mesa, time: new Date() }]);
+    // Auto-remove después de 5 segundos
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  }
 
   const fetchOrders = useCallback(async () => {
     // Pedidos activos (pendientes y en preparación)
@@ -46,6 +58,7 @@ export default function CocinaPage() {
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
           playNotificationSound();
+          addNotification(payload.new);
         }
         fetchOrders();
       })
@@ -75,6 +88,31 @@ export default function CocinaPage() {
     <ProtectedRoute allowedRoles={['cocinero', 'admin']}>
       <div className="min-h-screen bg-dark">
         <Navbar />
+
+        {/* 🔔 Toast Notifications */}
+        <div className="fixed top-20 right-4 z-50 flex flex-col gap-3 pointer-events-none">
+          {notifications.map((notif) => (
+            <div
+              key={notif.id}
+              className="pointer-events-auto animate-fade-in bg-gold/10 backdrop-blur-xl border border-gold/30 rounded-2xl px-5 py-4 shadow-2xl shadow-gold/10 flex items-center gap-3 min-w-[280px]"
+              style={{ animation: 'fadeIn 0.3s ease-out, slideDown 0.3s ease-out' }}
+            >
+              <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-xl">🔔</span>
+              </div>
+              <div>
+                <p className="text-gold font-bold text-sm">¡Nuevo Pedido!</p>
+                <p className="text-gray-400 text-xs">{notif.mesa} • Justo ahora</p>
+              </div>
+              <button
+                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                className="ml-auto text-gray-600 hover:text-white transition-colors text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
 
         <div className="p-6">
           {/* Header */}
