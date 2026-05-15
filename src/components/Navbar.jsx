@@ -56,7 +56,9 @@ export default function Navbar() {
       {/* User info + Logout */}
       <div className="flex items-center gap-4">
         <div className="text-right hidden sm:block">
-          <p className="text-sm text-white truncate max-w-[150px]">{profile?.email}</p>
+          <p className="text-sm text-white truncate max-w-[150px]">
+            {profile?.full_name || profile?.email}
+          </p>
           <p className="text-xs text-gold capitalize">{profile?.role}</p>
         </div>
         <button
