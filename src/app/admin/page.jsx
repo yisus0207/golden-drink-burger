@@ -1,10 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ConfirmModal from '@/components/ConfirmModal';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, AreaChart, Area
+} from 'recharts';
+
+// ── Dashboard helpers ──
+function formatCOP(n) {
+  return '$' + (n || 0).toLocaleString('es-CO');
+}
+
+function GoldTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-dark-card/95 backdrop-blur-md border border-gold/20 rounded-xl px-4 py-3 shadow-2xl">
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} className="text-gold font-bold text-sm">
+          {p.name}: {typeof p.value === 'number' && p.value > 100 ? formatCOP(p.value) : p.value}
+        </p>
+      ))}
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const [products, setProducts] = useState([]);
@@ -13,7 +36,12 @@ export default function AdminPage() {
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [tab, setTab] = useState('products');
+  const [tab, setTab] = useState('dashboard');
+
+  // Dashboard
+  const [orders, setOrders] = useState([]);
+  const [orderItems, setOrderItems] = useState([]);
+  const [dashRange, setDashRange] = useState(7);
 
   // Form para nueva categoría/mesa
   const [newCategory, setNewCategory] = useState('');
@@ -37,7 +65,17 @@ export default function AdminPage() {
     fetchCategories();
     fetchTables();
     fetchUsers();
+    fetchDashboard();
   }, []);
+
+  async function fetchDashboard() {
+    const [ordersRes, itemsRes] = await Promise.all([
+      supabase.from('orders').select('*').order('created_at', { ascending: true }),
+      supabase.from('order_items').select('*'),
+    ]);
+    setOrders(ordersRes.data || []);
+    setOrderItems(itemsRes.data || []);
+  }
 
   async function fetchUsers() {
     const { data } = await supabase
@@ -293,10 +331,20 @@ export default function AdminPage() {
 
         <div className="p-6 max-w-6xl mx-auto">
           <h2 className="text-2xl font-bold text-white mb-2">⚙️ Panel de Administración</h2>
-          <p className="text-gray-500 text-sm mb-6">Gestiona los productos y categorías del menú</p>
+          <p className="text-gray-500 text-sm mb-6">Gestiona tu negocio desde un solo lugar</p>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-8">
+          <div className="flex gap-2 mb-8 flex-wrap">
+            <button
+              onClick={() => setTab('dashboard')}
+              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                tab === 'dashboard'
+                  ? 'bg-gold text-black'
+                  : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'
+              }`}
+            >
+              📊 Dashboard
+            </button>
             <button
               onClick={() => setTab('products')}
               className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -338,6 +386,173 @@ export default function AdminPage() {
               👥 Usuarios
             </button>
           </div>
+
+          {/* ====== TAB: DASHBOARD ====== */}
+          {tab === 'dashboard' && (() => {
+            const completed = orders.filter(o => o.status === 'ready');
+            const totalRevenue = completed.reduce((sum, o) => sum + Number(o.total || 0), 0);
+            const totalOrders = completed.length;
+            const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+            // Producto estrella
+            const productCount = {};
+            orderItems.forEach(item => {
+              productCount[item.product_name] = (productCount[item.product_name] || 0) + item.quantity;
+            });
+            const topProductEntry = Object.entries(productCount).sort((a, b) => b[1] - a[1])[0];
+
+            // Hoy
+            const today = new Date().toDateString();
+            const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === today);
+            const todayRevenue = todayOrders.filter(o => o.status === 'ready').reduce((sum, o) => sum + Number(o.total || 0), 0);
+
+            // Status counts
+            const statusCounts = { pending: 0, preparing: 0, ready: 0 };
+            orders.forEach(o => { if (statusCounts[o.status] !== undefined) statusCounts[o.status]++; });
+
+            // Revenue por día
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - dashRange);
+            const revenueByDay = (() => {
+              const grouped = {};
+              completed.filter(o => new Date(o.created_at) >= cutoff).forEach(o => {
+                const day = new Date(o.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+                grouped[day] = (grouped[day] || 0) + Number(o.total || 0);
+              });
+              return Object.entries(grouped).map(([day, total]) => ({ day, total }));
+            })();
+
+            // Top 5 productos
+            const topProducts = Object.entries(productCount)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 5)
+              .map(([name, cantidad]) => ({
+                name: name.length > 18 ? name.slice(0, 16) + '…' : name,
+                cantidad,
+              }));
+
+            return (
+              <div className="animate-fade-in">
+                {/* Range selector */}
+                <div className="flex gap-2 mb-6">
+                  <button onClick={() => setDashRange(7)} className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${dashRange === 7 ? 'bg-gold text-black' : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'}`}>7 días</button>
+                  <button onClick={() => setDashRange(30)} className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${dashRange === 30 ? 'bg-gold text-black' : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'}`}>30 días</button>
+                  <button onClick={fetchDashboard} className="px-4 py-2 rounded-xl text-xs font-medium bg-dark-surface text-gray-400 border border-dark-border hover:text-gold hover:border-gold/30 transition-all">🔄 Actualizar</button>
+                </div>
+
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                  <div className="glass rounded-2xl p-5 relative overflow-hidden group hover:border-gold/30 transition-all">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gold/5 rounded-full -translate-y-8 translate-x-8 group-hover:bg-gold/10 transition-colors" />
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">💰 Ingresos Totales</p>
+                    <p className="text-2xl font-bold text-gold">{formatCOP(totalRevenue)}</p>
+                    <p className="text-xs text-gray-600 mt-2">Hoy: <span className="text-green-400">{formatCOP(todayRevenue)}</span></p>
+                  </div>
+                  <div className="glass rounded-2xl p-5 relative overflow-hidden group hover:border-gold/30 transition-all">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gold/5 rounded-full -translate-y-8 translate-x-8 group-hover:bg-gold/10 transition-colors" />
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">📦 Pedidos Completados</p>
+                    <p className="text-2xl font-bold text-white">{totalOrders}</p>
+                    <p className="text-xs text-gray-600 mt-2">Hoy: <span className="text-blue-400">{todayOrders.length} pedidos</span></p>
+                  </div>
+                  <div className="glass rounded-2xl p-5 relative overflow-hidden group hover:border-gold/30 transition-all">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gold/5 rounded-full -translate-y-8 translate-x-8 group-hover:bg-gold/10 transition-colors" />
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">🧾 Ticket Promedio</p>
+                    <p className="text-2xl font-bold text-white">{formatCOP(Math.round(avgTicket))}</p>
+                    <p className="text-xs text-gray-600 mt-2">Por pedido completado</p>
+                  </div>
+                  <div className="glass rounded-2xl p-5 relative overflow-hidden group hover:border-gold/30 transition-all">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-gold/5 rounded-full -translate-y-8 translate-x-8 group-hover:bg-gold/10 transition-colors" />
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">🏆 Producto Estrella</p>
+                    <p className="text-lg font-bold text-white truncate">{topProductEntry?.[0] || '—'}</p>
+                    <p className="text-xs text-gray-600 mt-2">{topProductEntry ? <>{topProductEntry[1]} <span className="text-gold">unidades</span></> : 'Sin datos'}</p>
+                  </div>
+                </div>
+
+                {/* Status Pills */}
+                <div className="flex flex-wrap gap-3 mb-8">
+                  <div className="glass rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse" />
+                    <span className="text-xs text-gray-400">Pendientes</span>
+                    <span className="text-sm font-bold text-white">{statusCounts.pending}</span>
+                  </div>
+                  <div className="glass rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse" />
+                    <span className="text-xs text-gray-400">En preparación</span>
+                    <span className="text-sm font-bold text-white">{statusCounts.preparing}</span>
+                  </div>
+                  <div className="glass rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                    <span className="text-xs text-gray-400">Listos</span>
+                    <span className="text-sm font-bold text-white">{statusCounts.ready}</span>
+                  </div>
+                </div>
+
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Area Chart */}
+                  <div className="lg:col-span-2 glass rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-white font-semibold">Tendencia de Ingresos</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Últimos {dashRange} días</p>
+                      </div>
+                      <span className="text-xs text-gold bg-gold/10 px-3 py-1 rounded-full border border-gold/20">En vivo</span>
+                    </div>
+                    {revenueByDay.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <AreaChart data={revenueByDay}>
+                          <defs>
+                            <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#D4AF37" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#D4AF37" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                          <XAxis dataKey="day" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} tickLine={false} />
+                          <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                          <Tooltip content={<GoldTooltip />} />
+                          <Area type="monotone" dataKey="total" name="Ingresos" stroke="#D4AF37" strokeWidth={2.5} fill="url(#goldGradient)" dot={{ r: 4, fill: '#D4AF37', strokeWidth: 2, stroke: '#1a1a2e' }} activeDot={{ r: 6, fill: '#D4AF37', stroke: '#fff', strokeWidth: 2 }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-[280px] text-gray-600">
+                        <div className="text-center">
+                          <p className="text-4xl mb-2">📈</p>
+                          <p className="text-sm">No hay datos de ventas en este período</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bar Chart — Top Productos */}
+                  <div className="glass rounded-2xl p-6">
+                    <div className="mb-6">
+                      <h3 className="text-white font-semibold">Top 5 Productos</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Más vendidos</p>
+                    </div>
+                    {topProducts.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={topProducts} layout="vertical" barCategoryGap="20%">
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                          <XAxis type="number" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <YAxis dataKey="name" type="category" tick={{ fill: '#d1d5db', fontSize: 11 }} axisLine={false} tickLine={false} width={110} />
+                          <Tooltip content={<GoldTooltip />} />
+                          <Bar dataKey="cantidad" name="Vendidos" fill="#D4AF37" radius={[0, 8, 8, 0]} barSize={20} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-[280px] text-gray-600">
+                        <div className="text-center">
+                          <p className="text-4xl mb-2">🍔</p>
+                          <p className="text-sm">Sin productos vendidos aún</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ====== TAB: PRODUCTOS ====== */}
           {tab === 'products' && (
