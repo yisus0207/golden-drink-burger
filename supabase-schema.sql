@@ -76,12 +76,18 @@ CREATE TABLE public.order_items (
 
 -- ============================================
 -- TRIGGER: Crear perfil automáticamente al registrar usuario
+-- Lee el nombre y rol desde los metadatos enviados por signUp()
 -- ============================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email, role)
-  VALUES (NEW.id, NEW.email, 'cajero');
+  INSERT INTO public.profiles (id, email, full_name, role)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+    COALESCE(NEW.raw_user_meta_data->>'role', 'cajero')
+  );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -100,11 +106,15 @@ ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 
--- Profiles: todos pueden ver
+-- Profiles: todos pueden ver, admins pueden borrar
 CREATE POLICY "Users can view all profiles" ON public.profiles
   FOR SELECT USING (true);
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Admins can delete profiles" ON public.profiles
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- Tables: todos pueden ver
 CREATE POLICY "Anyone can view tables" ON public.tables

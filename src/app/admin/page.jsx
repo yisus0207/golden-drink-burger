@@ -241,33 +241,37 @@ export default function AdminPage() {
 
       if (authError) throw authError;
 
-      // 2. Aseguramos el perfil (por si el trigger falla o no está actualizado)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: authData.user.id,
-          full_name: userForm.full_name,
-          email: userForm.email,
-          role: userForm.role
-        });
+      // El trigger de Supabase en el backend se encarga automáticamente de crear 
+      // el registro en la tabla 'profiles' saltándose las restricciones RLS.
+      // Damos un pequeño margen de tiempo (500ms) para que el trigger termine antes de recargar la tabla
+      setTimeout(() => {
+        alert('¡Usuario registrado con éxito!');
+        setUserForm({ full_name: '', email: '', password: '', role: 'cajero' });
+        fetchUsers();
+        setLoading(false);
+      }, 500);
 
-      if (profileError) throw profileError;
-
-      alert('¡Usuario registrado con éxito!');
-      setUserForm({ full_name: '', email: '', password: '', role: 'cajero' });
-      fetchUsers();
     } catch (error) {
       console.error('Error creando usuario:', error);
       alert('Error: ' + (error.message || 'No se pudo crear el usuario'));
-    } finally {
       setLoading(false);
     }
   }
 
   async function performDeleteUser(id) {
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
-    if (!error) {
-      fetchUsers();
+    try {
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      
+      if (error) {
+        console.error('Error al eliminar:', error);
+        alert('No se pudo eliminar el usuario. Es posible que falten permisos en Supabase (RLS). Error: ' + error.message);
+      } else {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error('Excepción al eliminar:', err);
+      alert('Hubo un problema al intentar eliminar el usuario.');
+    } finally {
       setModalConfig({ isOpen: false });
     }
   }
@@ -691,8 +695,11 @@ export default function AdminPage() {
                               </td>
                               <td className="p-4 text-right">
                                 <button
-                                  onClick={() => deleteUser(profile)}
-                                  className="p-2 text-red-500/50 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteUser(profile);
+                                  }}
+                                  className="p-3 text-red-500/60 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer"
                                   title="Quitar acceso"
                                 >
                                   🗑️

@@ -18,7 +18,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const { error: authError } = await signIn(email, password);
+    const { data, error: authError } = await signIn(email, password);
 
     if (authError) {
       setError('Credenciales incorrectas. Verifica tu correo y contraseña.');
@@ -26,20 +26,18 @@ export default function LoginPage() {
       return;
     }
 
-    // Obtener perfil para redirigir según el rol
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+    // El perfil ya fue cargado por signIn en AuthContext
+    // Obtenerlo directamente para la redirección
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single();
 
-      if (profile?.role === 'cocinero') {
-        router.push('/cocina');
-      } else {
-        router.push('/pedidos');
-      }
+    if (profileData?.role === 'cocinero') {
+      router.push('/cocina');
+    } else if (profileData?.role === 'admin') {
+      router.push('/admin');
     } else {
       router.push('/pedidos');
     }
