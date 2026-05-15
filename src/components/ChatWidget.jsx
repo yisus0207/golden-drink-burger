@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { playNotificationSound } from '@/lib/sounds';
@@ -80,12 +81,17 @@ export default function ChatWidget() {
     const tempMessage = newMessage;
     setNewMessage(''); // Limpiar el input rápido para mejor UX
 
-    await supabase.from('messages').insert({
+    const { error } = await supabase.from('messages').insert({
       sender_id: user.id,
       sender_name: profile.full_name || profile.email,
       sender_role: profile.role,
       content: tempMessage
     });
+
+    if (error) {
+      console.error("Error al enviar mensaje:", error);
+      alert("No se pudo enviar el mensaje. Revisa la consola.");
+    }
   };
 
   // Determinar colores basados en el rol
@@ -105,7 +111,7 @@ export default function ChatWidget() {
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-gradient-to-tr from-gold to-yellow-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-110 transition-transform duration-300"
       >
-        <span className="text-3xl">🍔</span>
+        <Image src="/burger-3d.png" alt="Chat" width={40} height={40} className="drop-shadow-md" />
         
         {/* Badge de no leídos */}
         {unreadCount > 0 && !isOpen && (
@@ -124,7 +130,9 @@ export default function ChatWidget() {
         {/* Header del Chat */}
         <div className="p-4 border-b border-dark-border flex items-center justify-between bg-dark-card">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🍔</span>
+            <div className="w-10 h-10 bg-gold/20 rounded-full flex items-center justify-center">
+              <Image src="/burger-3d.png" alt="Chat Logo" width={28} height={28} />
+            </div>
             <div>
               <h3 className="text-white font-bold text-lg">Chat de Equipo</h3>
               <p className="text-xs text-status-ready flex items-center gap-1">
