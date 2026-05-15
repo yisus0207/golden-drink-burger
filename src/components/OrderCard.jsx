@@ -33,16 +33,16 @@ export default function OrderCard({ order, onStatusChange }) {
   const timeAgo = getTimeAgo(order.created_at);
 
   return (
-    <div className={`rounded-xl border-2 ${config.border} ${config.bg} p-5 animate-fade-in transition-all duration-300 hover:scale-[1.02]`}>
+    <div className={`rounded-xl border-2 ${config.border} ${config.bg} p-4 sm:p-5 animate-fade-in transition-all duration-300 sm:hover:scale-[1.02]`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div className="flex flex-col">
-          <span className="text-white font-bold text-xl">Pedido #{order.id}</span>
+          <span className="text-white font-bold text-lg sm:text-xl">Pedido #{order.id}</span>
           {order.table_number && (
-            <span className="text-gold font-medium text-sm">📍 {order.table_number}</span>
+            <span className="text-gold font-medium text-xs sm:text-sm">📍 {order.table_number}</span>
           )}
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${config.text} ${config.bg} border ${config.border} flex items-center gap-1.5`}>
+        <span className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold ${config.text} ${config.bg} border ${config.border} flex items-center gap-1.5`}>
           <span className={`w-2 h-2 rounded-full ${config.dot} animate-pulse`} />
           {config.label}
         </span>
@@ -52,9 +52,9 @@ export default function OrderCard({ order, onStatusChange }) {
       <div className="w-full h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent mb-3" />
 
       {/* Items */}
-      <div className="space-y-2 mb-4">
+      <div className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4">
         {order.order_items?.map((item, i) => (
-          <div key={i} className="flex justify-between text-sm">
+          <div key={i} className="flex justify-between text-xs sm:text-sm">
             <span className="text-gray-300">
               <span className="text-gold font-semibold">{item.quantity}x</span>{' '}
               {item.product_name}
@@ -64,7 +64,7 @@ export default function OrderCard({ order, onStatusChange }) {
       </div>
 
       {/* Time + Total */}
-      <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+      <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-500 mb-3 sm:mb-4">
         <span>⏱ {timeAgo}</span>
         <span className="text-gold font-semibold">
           Total: ${order.total?.toLocaleString('es-CO')}
@@ -75,7 +75,7 @@ export default function OrderCard({ order, onStatusChange }) {
       {config.nextAction && (
         <button
           onClick={() => onStatusChange(order.id, config.nextStatus)}
-          className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
+          className={`w-full py-2.5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 active:scale-95 ${
             order.status === 'pending'
               ? 'bg-status-preparing/20 text-status-preparing hover:bg-status-preparing hover:text-black border border-status-preparing/30'
               : 'bg-status-ready/20 text-status-ready hover:bg-status-ready hover:text-black border border-status-ready/30'

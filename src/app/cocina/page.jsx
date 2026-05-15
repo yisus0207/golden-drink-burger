@@ -18,14 +18,12 @@ export default function CocinaPage() {
     const id = ++notifId.current;
     const mesa = order.table_number || 'Sin mesa';
     setNotifications(prev => [...prev, { id, mesa, time: new Date() }]);
-    // Auto-remove después de 5 segundos
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
   }
 
   const fetchOrders = useCallback(async () => {
-    // Pedidos activos (pendientes y en preparación)
     const { data: active } = await supabase
       .from('orders')
       .select('*, order_items(*)')
@@ -34,7 +32,6 @@ export default function CocinaPage() {
 
     setOrders(active || []);
 
-    // Pedidos completados (últimos 10)
     const { data: completed } = await supabase
       .from('orders')
       .select('*, order_items(*)')
@@ -48,7 +45,6 @@ export default function CocinaPage() {
   useEffect(() => {
     fetchOrders();
 
-    // Suscripción en tiempo real
     const channel = supabase
       .channel('kitchen-orders')
       .on('postgres_changes', {
@@ -89,24 +85,23 @@ export default function CocinaPage() {
       <div className="min-h-screen bg-dark">
         <Navbar />
 
-        {/* 🔔 Toast Notifications */}
-        <div className="fixed top-20 right-4 z-50 flex flex-col gap-3 pointer-events-none">
+        {/* 🔔 Toast Notifications — Mobile friendly */}
+        <div className="fixed top-16 left-0 right-0 sm:left-auto sm:right-4 sm:top-20 z-50 flex flex-col gap-2 sm:gap-3 pointer-events-none px-3 sm:px-0">
           {notifications.map((notif) => (
             <div
               key={notif.id}
-              className="pointer-events-auto animate-fade-in bg-gold/10 backdrop-blur-xl border border-gold/30 rounded-2xl px-5 py-4 shadow-2xl shadow-gold/10 flex items-center gap-3 min-w-[280px]"
-              style={{ animation: 'fadeIn 0.3s ease-out, slideDown 0.3s ease-out' }}
+              className="pointer-events-auto animate-fade-in bg-gold/10 backdrop-blur-xl border border-gold/30 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 shadow-2xl shadow-gold/10 flex items-center gap-3 w-full sm:min-w-[280px] sm:w-auto"
             >
-              <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-xl">🔔</span>
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gold/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-lg sm:text-xl">🔔</span>
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-gold font-bold text-sm">¡Nuevo Pedido!</p>
-                <p className="text-gray-400 text-xs">{notif.mesa} • Justo ahora</p>
+                <p className="text-gray-400 text-xs truncate">{notif.mesa} • Justo ahora</p>
               </div>
               <button
                 onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
-                className="ml-auto text-gray-600 hover:text-white transition-colors text-xs"
+                className="text-gray-600 hover:text-white transition-colors text-xs flex-shrink-0 p-1"
               >
                 ✕
               </button>
@@ -114,39 +109,39 @@ export default function CocinaPage() {
           ))}
         </div>
 
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
+        <div className="p-4 sm:p-6">
+          {/* Header — Mobile stacked */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-white">🔥 Panel de Cocina</h2>
-              <p className="text-gray-500 text-sm mt-1">Los pedidos aparecen en tiempo real</p>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">🔥 Panel de Cocina</h2>
+              <p className="text-gray-500 text-xs sm:text-sm mt-1">Los pedidos aparecen en tiempo real</p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 bg-gold/10 border border-gold/20 px-5 py-3 rounded-xl">
-                <span className="text-gold font-bold text-2xl">{activeCount}</span>
-                <span className="text-gray-400 text-sm">pedidos<br/>activos</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-gold/10 border border-gold/20 px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl">
+                <span className="text-gold font-bold text-xl sm:text-2xl">{activeCount}</span>
+                <span className="text-gray-400 text-xs sm:text-sm leading-tight">pedidos<br/>activos</span>
               </div>
               <button
                 onClick={() => setShowCompleted(!showCompleted)}
-                className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                   showCompleted
                     ? 'bg-status-ready/10 text-status-ready border border-status-ready/30'
                     : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'
                 }`}
               >
-                {showCompleted ? '✅ Ocultar listos' : `✅ Ver listos (${completedOrders.length})`}
+                {showCompleted ? '✅ Ocultar' : `✅ Listos (${completedOrders.length})`}
               </button>
             </div>
           </div>
 
           {/* Pendientes */}
           {pendingOrders.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-status-pending mb-4 flex items-center gap-2">
+            <div className="mb-6 sm:mb-8">
+              <h3 className="text-base sm:text-lg font-semibold text-status-pending mb-3 sm:mb-4 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-status-pending rounded-full animate-pulse" />
                 Pendientes ({pendingOrders.length})
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                 {pendingOrders.map(order => (
                   <OrderCard
                     key={order.id}
@@ -160,12 +155,12 @@ export default function CocinaPage() {
 
           {/* En preparación */}
           {preparingOrders.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-status-preparing mb-4 flex items-center gap-2">
+            <div className="mb-6 sm:mb-8">
+              <h3 className="text-base sm:text-lg font-semibold text-status-preparing mb-3 sm:mb-4 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-status-preparing rounded-full animate-pulse" />
                 En Preparación ({preparingOrders.length})
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                 {preparingOrders.map(order => (
                   <OrderCard
                     key={order.id}
@@ -179,23 +174,23 @@ export default function CocinaPage() {
 
           {/* Sin pedidos */}
           {orders.length === 0 && (
-            <div className="text-center text-gray-600 py-24">
-              <p className="text-7xl mb-4">👨‍🍳</p>
-              <p className="text-xl font-medium text-gray-400">No hay pedidos pendientes</p>
-              <p className="text-sm mt-2 text-gray-600">
-                Los nuevos pedidos aparecerán aquí automáticamente con un sonido 🔔
+            <div className="text-center text-gray-600 py-16 sm:py-24">
+              <p className="text-5xl sm:text-7xl mb-4">👨‍🍳</p>
+              <p className="text-lg sm:text-xl font-medium text-gray-400">No hay pedidos pendientes</p>
+              <p className="text-xs sm:text-sm mt-2 text-gray-600">
+                Los nuevos pedidos aparecerán aquí automáticamente 🔔
               </p>
             </div>
           )}
 
           {/* Pedidos completados */}
           {showCompleted && completedOrders.length > 0 && (
-            <div className="mt-8 pt-8 border-t border-dark-border">
-              <h3 className="text-lg font-semibold text-status-ready mb-4 flex items-center gap-2">
+            <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-dark-border">
+              <h3 className="text-base sm:text-lg font-semibold text-status-ready mb-3 sm:mb-4 flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-status-ready rounded-full" />
                 Completados
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 opacity-60">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 opacity-60">
                 {completedOrders.map(order => (
                   <OrderCard
                     key={order.id}
