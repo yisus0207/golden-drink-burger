@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
+import { MessageCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { playChatSound } from '@/lib/sounds';
@@ -105,19 +105,27 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Botón flotante hamburguesa */}
+      {/* Botón flotante animado */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-gradient-to-tr from-gold to-yellow-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-110 transition-transform duration-300"
+        className={`fixed bottom-6 right-6 z-50 flex items-center justify-center hover:scale-110 transition-transform duration-300 ${isOpen ? 'hidden sm:flex' : 'flex'}`}
       >
-        <Image src="/burger-3d.png" alt="Chat" width={40} height={40} className="drop-shadow-md" />
-        
-        {/* Badge de no leídos */}
-        {unreadCount > 0 && !isOpen && (
-          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-dark animate-bounce">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
+        <div className="relative animate-float">
+          {/* Icono de mensaje estilo 3D */}
+          <MessageCircle 
+            className="w-16 h-16 text-gold drop-shadow-[0_10px_15px_rgba(212,175,55,0.4)]" 
+            fill="currentColor" 
+            strokeWidth={1.5} 
+            stroke="#1a1a1a"
+          />
+          
+          {/* Badge de no leídos */}
+          {unreadCount > 0 && !isOpen && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-dark shadow-lg">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </div>
       </button>
 
       {/* Panel lateral de chat */}
@@ -129,8 +137,8 @@ export default function ChatWidget() {
         {/* Header del Chat */}
         <div className="p-4 border-b border-dark-border flex items-center justify-between bg-dark-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gold/20 rounded-full flex items-center justify-center">
-              <Image src="/burger-3d.png" alt="Chat Logo" width={28} height={28} />
+            <div className="w-10 h-10 bg-gold/10 rounded-full flex items-center justify-center border border-gold/20">
+              <MessageCircle className="w-5 h-5 text-gold" fill="currentColor" strokeWidth={1.5} stroke="#1a1a1a" />
             </div>
             <div>
               <h3 className="text-white font-bold text-lg">Chat de Equipo</h3>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
@@ -8,6 +8,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import ProductCard from '@/components/ProductCard';
 import Cart from '@/components/Cart';
 import CategoryTabs from '@/components/CategoryTabs';
+import { playNotificationSound } from '@/lib/sounds';
 
 export default function PedidosPage() {
   const { user } = useAuth();
@@ -19,12 +20,45 @@ export default function PedidosPage() {
   const [tableNumber, setTableNumber] = useState('');
   const [sending, setSending] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const notifId = useRef(0);
 
   useEffect(() => {
     fetchCategories();
     fetchProducts();
     fetchTables();
+
+    // Suscripción a cambios de estado de pedidos para notificar al cajero cuando estén listos
+    const channel = supabase
+      .channel('cashier-orders')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orders'
+      }, (payload) => {
+        // Solo notificar si el estado cambió a 'ready'
+        if (payload.new.status === 'ready' && payload.old.status !== 'ready') {
+          playNotificationSound();
+          addReadyNotification(payload.new);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  function addReadyNotification(order) {
+    const id = ++notifId.current;
+    const mesa = order.table_number || 'Sin mesa';
+    setNotifications(prev => [...prev, { id, orderId: order.id, mesa }]);
+    
+    // Auto-remover después de 8 segundos
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 8000);
+  }
 
   async function fetchCategories() {
     const { data } = await supabase
@@ -137,21 +171,46 @@ export default function PedidosPage() {
 
   return (
     <ProtectedRoute allowedRoles={['cajero', 'admin']}>
-      <div className="min-h-screen bg-dark">
+      <div className="min-h-screen bg-dark relative">
         <Navbar />
 
-        {/* Mensaje de éxito */}
+        {/* 🔔 Toast Notifications para Pedidos Listos */}
+        <div className="fixed top-20 left-4 sm:left-1/2 sm:-translate-x-1/2 z-50 flex flex-col gap-3 pointer-events-none w-[90%] sm:w-auto max-w-sm">
+          {notifications.map((notif) => (
+            <div
+              key={notif.id}
+              className="pointer-events-auto animate-fade-in bg-status-ready/10 backdrop-blur-xl border border-status-ready/30 rounded-2xl px-5 py-4 shadow-2xl flex items-center gap-4"
+              style={{ animation: 'fadeIn 0.3s ease-out, slideDown 0.3s ease-out' }}
+            >
+              <div className="w-12 h-12 rounded-full bg-status-ready/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl">✅</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-status-ready font-bold text-lg leading-tight">¡Pedido Listo!</p>
+                <p className="text-gray-300 text-sm mt-0.5">Orden #{notif.orderId} • <span className="text-white font-medium">{notif.mesa}</span></p>
+              </div>
+              <button
+                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                className="text-gray-500 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Mensaje de éxito de envío (se mantiene el existente) */}
         {successMessage && (
-          <div className="fixed top-20 right-4 z-50 animate-slide-in">
-            <div className="bg-status-ready/10 border border-status-ready/30 text-status-ready px-6 py-4 rounded-xl shadow-2xl shadow-status-ready/10 backdrop-blur-sm">
+          <div className="fixed top-20 right-4 z-50 animate-slide-in pointer-events-none">
+            <div className="bg-gold/10 border border-gold/30 text-gold px-6 py-4 rounded-xl shadow-2xl backdrop-blur-sm">
               <p className="font-semibold">{successMessage}</p>
             </div>
           </div>
         )}
 
-        <div className="flex h-[calc(100vh-64px)]">
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden">
           {/* Izquierda: Menú de productos */}
-          <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-white mb-1">Menú</h2>
               <p className="text-gray-500 text-sm">Selecciona los productos para el pedido</p>
@@ -163,7 +222,7 @@ export default function PedidosPage() {
               onSelect={setSelectedCategory}
             />
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mt-6 pb-24 lg:pb-0">
               {filteredProducts.map(product => (
                 <ProductCard
                   key={product.id}
@@ -182,17 +241,19 @@ export default function PedidosPage() {
           </div>
 
           {/* Derecha: Carrito */}
-          <Cart
-            items={cart}
-            total={total}
-            tables={tables}
-            tableNumber={tableNumber}
-            onTableNumberChange={setTableNumber}
-            onRemove={removeFromCart}
-            onUpdateQuantity={updateQuantity}
-            onSend={sendOrder}
-            sending={sending}
-          />
+          <div className="lg:w-[400px] xl:w-[450px] flex-shrink-0 border-t lg:border-t-0 lg:border-l border-dark-border bg-dark-surface z-20">
+            <Cart
+              items={cart}
+              total={total}
+              tables={tables}
+              tableNumber={tableNumber}
+              onTableNumberChange={setTableNumber}
+              onRemove={removeFromCart}
+              onUpdateQuantity={updateQuantity}
+              onSend={sendOrder}
+              sending={sending}
+            />
+          </div>
         </div>
       </div>
     </ProtectedRoute>
