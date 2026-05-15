@@ -13,6 +13,7 @@ export default function ChatWidget() {
   const [newMessage, setNewMessage] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef(null);
+  const isOpenRef = useRef(isOpen);
   
   // No renderizar si no hay usuario (ej. pantalla de login)
   if (!user || !profile) return null;
@@ -22,6 +23,7 @@ export default function ChatWidget() {
   };
 
   useEffect(() => {
+    isOpenRef.current = isOpen;
     if (isOpen) {
       scrollToBottom();
       setUnreadCount(0); // Limpiar no leídos al abrir
@@ -54,11 +56,16 @@ export default function ChatWidget() {
         table: 'messages'
       }, (payload) => {
         const incomingMessage = payload.new;
-        setMessages(prev => [...prev, incomingMessage]);
         
-        // Si no fui yo quien lo envió, y el chat está cerrado, subimos el contador y suena
+        // Evitar duplicados si por alguna razón llega el mismo evento dos veces
+        setMessages(prev => {
+          if (prev.some(m => m.id === incomingMessage.id)) return prev;
+          return [...prev, incomingMessage];
+        });
+        
+        // Si no fui yo quien lo envió, verificamos el estado actual de isOpen vía la referencia
         if (incomingMessage.sender_id !== user.id) {
-          if (!isOpen) {
+          if (!isOpenRef.current) {
             setUnreadCount(prev => prev + 1);
             playChatSound(); // Sonido distintivo para chat
           } else {
@@ -71,7 +78,7 @@ export default function ChatWidget() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id, isOpen]); // isOpen en dependencias porque su valor determina si sumamos unreadCount
+  }, [user.id]); // Solo suscribirse al montar y cuando cambie el user.id
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -130,12 +137,12 @@ export default function ChatWidget() {
 
       {/* Panel lateral de chat */}
       <div 
-        className={`fixed top-0 right-0 h-full w-full sm:w-[400px] bg-dark-surface/95 backdrop-blur-xl border-l border-dark-border z-40 transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl ${
+        className={`fixed top-0 right-0 h-[100dvh] w-full sm:w-[400px] bg-dark-surface/95 backdrop-blur-xl border-l border-dark-border z-40 transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Header del Chat */}
-        <div className="p-4 border-b border-dark-border flex items-center justify-between bg-dark-card">
+        <div className="p-4 border-b border-dark-border flex items-center justify-between bg-dark-card flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gold/10 rounded-full flex items-center justify-center border border-gold/20">
               <MessageCircle className="w-5 h-5 text-gold" fill="currentColor" strokeWidth={1.5} stroke="#1a1a1a" />
@@ -160,7 +167,7 @@ export default function ChatWidget() {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-3 opacity-50">
-              <span className="text-5xl">💬</span>
+              <MessageCircle className="w-12 h-12 text-gray-500" strokeWidth={1} />
               <p className="text-sm">Inicia la conversación...</p>
             </div>
           ) : (
@@ -204,7 +211,7 @@ export default function ChatWidget() {
         </div>
 
         {/* Input de mensaje */}
-        <div className="p-4 bg-dark-card border-t border-dark-border">
+        <div className="p-4 bg-dark-card border-t border-dark-border flex-shrink-0">
           <form onSubmit={sendMessage} className="flex gap-2">
             <input
               type="text"
