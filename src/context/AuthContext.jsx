@@ -17,6 +17,23 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }, 4000);
 
+    // Función auxiliar para forzar la validación y refresco de la sesión actual
+    const checkAndRefreshSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+        } else if (user) {
+          // Si ya no hay sesión pero teníamos un usuario, limpiamos para forzar re-login
+          setUser(null);
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('Error auto-refrescando sesión en AuthContext:', err);
+      }
+    };
+
     // 1. Obtener sesión una sola vez al montar
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
@@ -48,9 +65,29 @@ export function AuthProvider({ children }) {
       }
     );
 
+    // 3. Mecanismo de reactivación proactivo ante reactivación y suspensión de pestañas
+    // Se ejecuta al volver a enfocar la app o recuperar internet (especialmente útil en móviles)
+    const handleReactivation = () => {
+      console.log('[AuthContext] Reactivación detectada (focus/online). Validando sesión...');
+      checkAndRefreshSession();
+    };
+
+    window.addEventListener('focus', handleReactivation);
+    window.addEventListener('online', handleReactivation);
+
+    // 4. Intervalo preventivo de verificación cada 5 minutos
+    // Evita la caducidad por inactividad en pantallas encendidas continuamente (caja o cocina)
+    const sessionInterval = setInterval(() => {
+      console.log('[AuthContext] Verificación preventiva de sesión...');
+      checkAndRefreshSession();
+    }, 5 * 60 * 1000);
+
     return () => {
       subscription.unsubscribe();
       clearTimeout(timeout);
+      clearInterval(sessionInterval);
+      window.removeEventListener('focus', handleReactivation);
+      window.removeEventListener('online', handleReactivation);
     };
   }, []);
 
