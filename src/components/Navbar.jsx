@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -8,6 +9,11 @@ export default function Navbar() {
   const { profile, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -21,9 +27,9 @@ export default function Navbar() {
     { href: '/admin', label: 'Admin', icon: '⚙️', roles: ['admin'] },
   ];
 
-  const visibleLinks = navLinks.filter(link =>
-    link.roles.includes(profile?.role)
-  );
+  const visibleLinks = mounted && profile
+    ? navLinks.filter(link => link.roles.includes(profile.role))
+    : [];
 
   return (
     <>
@@ -57,12 +63,14 @@ export default function Navbar() {
 
         {/* User info + Logout */}
         <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm text-white truncate max-w-[150px]">
-              {profile?.full_name || profile?.email}
-            </p>
-            <p className="text-xs text-gold capitalize">{profile?.role}</p>
-          </div>
+          {mounted && profile && (
+            <div className="text-right hidden sm:block animate-fade-in">
+              <p className="text-sm text-white truncate max-w-[150px]">
+                {profile.full_name || profile.email}
+              </p>
+              <p className="text-xs text-gold capitalize">{profile.role}</p>
+            </div>
+          )}
           <button
             onClick={handleSignOut}
             className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-gray-400 hover:text-red-400 bg-dark-surface border border-dark-border rounded-lg hover:border-red-500/30 transition-all duration-200"

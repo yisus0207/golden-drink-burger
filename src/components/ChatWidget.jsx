@@ -10,6 +10,7 @@ import { usePathname } from 'next/navigation';
 export default function ChatWidget() {
   const { user, profile } = useAuth();
   const pathname = usePathname();
+  const isPedidosPage = pathname === '/pedidos';
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -19,7 +20,11 @@ export default function ChatWidget() {
   const messagesEndRef = useRef(null);
   const isOpenRef = useRef(isOpen);
 
-  const isPedidosPage = pathname === '/pedidos';
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Sincronizar el número de artículos en el carrito
   useEffect(() => {
@@ -30,8 +35,8 @@ export default function ChatWidget() {
     return () => window.removeEventListener('cart-updated', handleCartUpdate);
   }, []);
   
-  // No renderizar si no hay usuario (ej. pantalla de login)
-  if (!user || !profile) return null;
+  // No renderizar si no hay usuario o no está montado (evita hydration mismatch)
+  if (!mounted || !user || !profile) return null;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
