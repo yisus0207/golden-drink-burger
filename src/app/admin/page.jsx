@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, createTempClient } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -265,9 +265,10 @@ export default function AdminPage() {
     setLoading(true);
 
     try {
-      // 1. Crear el usuario en Auth
-      // Usamos signUp con metadatos para el Trigger de perfiles
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 1. Crear el usuario en Auth usando un cliente temporal sin persistencia de sesión
+      // Esto evita que la sesión del administrador sea reemplazada por la del nuevo usuario
+      const tempSupabase = createTempClient();
+      const { data: authData, error: authError } = await tempSupabase.auth.signUp({
         email: userForm.email,
         password: userForm.password,
         options: {
