@@ -329,7 +329,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-dark">
         <Navbar />
 
-        <div className="p-6 max-w-6xl mx-auto">
+        <div className="p-4 sm:p-6 w-full">
           <h2 className="text-2xl font-bold text-white mb-2">⚙️ Panel de Administración</h2>
           <p className="text-gray-500 text-sm mb-6">Gestiona tu negocio desde un solo lugar</p>
 
