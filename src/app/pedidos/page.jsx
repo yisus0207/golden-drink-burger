@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, promiseWithTimeout } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -45,6 +45,21 @@ export default function PedidosPage() {
     }
   }, []);
 
+  const showSystemNotification = useCallback((title, body) => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body,
+            icon: '/favicon.ico',
+          });
+        } catch (err) {
+          console.warn('Error mostrando notificación nativa:', err);
+        }
+      }
+    }
+  }, []);
+
   // Suscripción Realtime y Blindaje ante Inactividad (Focus / Online)
   useEffect(() => {
     loadData();
@@ -67,6 +82,11 @@ export default function PedidosPage() {
           if (payload.new.status === 'ready' && payload.old.status !== 'ready') {
             playNotificationSound();
             addReadyNotification(payload.new);
+            // Si la ventana no está visible, disparar notificación nativa
+            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+              const mesa = payload.new.table_number || 'Sin mesa';
+              showSystemNotification('✅ ¡Pedido Listo para Servir!', `La orden #${payload.new.id} de la mesa ${mesa} está lista.`);
+            }
           }
         })
         .subscribe((status) => {
@@ -126,30 +146,39 @@ export default function PedidosPage() {
   }
 
   async function fetchCategories() {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('id');
+    const { data, error } = await promiseWithTimeout(
+      supabase
+        .from('categories')
+        .select('*')
+        .order('id'),
+      8000
+    );
     if (error) throw error;
     setCategories(data || []);
     if (data?.length > 0) setSelectedCategory(data[0].id);
   }
 
   async function fetchTables() {
-    const { data, error } = await supabase
-      .from('tables')
-      .select('*')
-      .order('id');
+    const { data, error } = await promiseWithTimeout(
+      supabase
+        .from('tables')
+        .select('*')
+        .order('id'),
+      8000
+    );
     if (error) throw error;
     setTables(data || []);
   }
 
   async function fetchProducts() {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('available', true)
-      .order('name');
+    const { data, error } = await promiseWithTimeout(
+      supabase
+        .from('products')
+        .select('*')
+        .eq('available', true)
+        .order('name'),
+      8000
+    );
     if (error) throw error;
     setProducts(data || []);
   }

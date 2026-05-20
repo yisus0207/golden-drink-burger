@@ -4,13 +4,41 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import ChatWidget from './ChatWidget';
+import { supabase, promiseWithTimeout } from '@/lib/supabase';
 
 export default function ProtectedRoute({ children, allowedRoles }) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    // Solicitar permiso de notificaciones nativas del navegador
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().catch(err => {
+          console.warn('Error al solicitar permiso de notificaciones:', err);
+        });
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const verifySession = async () => {
+      if (user) {
+        try {
+          // Intentar verificar la sesión con un timeout rápido de 3 segundos
+          const { data: { session } } = await promiseWithTimeout(supabase.auth.getSession(), 3000);
+          if (!session) {
+            console.warn('[ProtectedRoute] Sesión expirada o nula. Redirigiendo a login.');
+            router.push('/login');
+          }
+        } catch (err) {
+          console.error('[ProtectedRoute] Timeout o error verificando sesión en navegación:', err);
+        }
+      }
+    };
+
     if (!loading) {
+      verifySession();
       if (!user) {
         router.push('/login');
       } else if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
@@ -21,6 +49,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
       }
     }
   }, [user, profile, loading, router, allowedRoles]);
+
 
   if (loading) {
     return (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, promiseWithTimeout } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import OrderCard from '@/components/OrderCard';
@@ -25,31 +25,50 @@ export default function CocinaPage() {
     }, 5000);
   }
 
+  const showSystemNotification = useCallback((title, body) => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body,
+            icon: '/favicon.ico',
+          });
+        } catch (err) {
+          console.warn('Error mostrando notificación nativa:', err);
+        }
+      }
+    }
+  }, []);
+
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const { data: active, error: activeError } = await supabase
+      const activePromise = supabase
         .from('orders')
         .select('*, order_items(*)')
         .in('status', ['pending', 'preparing'])
         .order('created_at', { ascending: true });
 
+      const { data: active, error: activeError } = await promiseWithTimeout(activePromise, 8000);
+
       if (activeError) throw activeError;
       setOrders(active || []);
 
-      const { data: completed, error: completedError } = await supabase
+      const completedPromise = supabase
         .from('orders')
         .select('*, order_items(*)')
         .eq('status', 'ready')
         .order('created_at', { ascending: false })
         .limit(10);
 
+      const { data: completed, error: completedError } = await promiseWithTimeout(completedPromise, 8000);
+
       if (completedError) throw completedError;
       setCompletedOrders(completed || []);
     } catch (err) {
       console.error('Error cargando pedidos en cocina:', err);
-      setLoadError(err.message || 'Error de conexión con la base de datos');
+      setLoadError(err.message || 'Error de conexión con la base de datos (inactividad detectada). Por favor comprueba tu conexión.');
     } finally {
       setLoading(false);
     }
@@ -76,6 +95,11 @@ export default function CocinaPage() {
           if (payload.eventType === 'INSERT') {
             playNotificationSound();
             addNotification(payload.new);
+            // Si la ventana no está en primer plano, disparar notificación nativa
+            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+              const mesa = payload.new.table_number || 'Sin mesa';
+              showSystemNotification('🔥 ¡Nuevo Pedido en Cocina!', `Mesa ${mesa} • Nuevo pedido ingresado listo para preparar.`);
+            }
           }
           fetchOrders();
         })
@@ -108,7 +132,22 @@ export default function CocinaPage() {
       window.removeEventListener('focus', handleReactivation);
       window.removeEventListener('online', handleReactivation);
     };
-  }, [fetchOrders]);
+  }, [fetchOrders, showSystemNotification]);
+
+  // Auto-recuperación silenciosa en Cocina cada 5 segundos ante fallos de conexión
+  useEffect(() => {
+    let intervalId;
+    if (loadError) {
+      console.log('[Cocina] Programando reintento automático de carga en 5 segundos...');
+      intervalId = setInterval(() => {
+        console.log('[Cocina] Auto-reintentando cargar pedidos...');
+        fetchOrders();
+      }, 5000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [loadError, fetchOrders]);
 
   async function updateStatus(orderId, newStatus) {
     const { error } = await supabase

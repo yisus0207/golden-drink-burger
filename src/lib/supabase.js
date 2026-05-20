@@ -12,3 +12,19 @@ export const createTempClient = () => createClient(supabaseUrl, supabaseAnonKey,
     detectSessionInUrl: false
   }
 });
+
+export function promiseWithTimeout(promise, ms = 8000) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const err = new Error('Timeout de conexión con la base de datos (inactividad detectada). Por favor, comprueba tu conexión o refresca.');
+      err.name = 'TimeoutError';
+      reject(err);
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+

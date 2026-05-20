@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, promiseWithTimeout } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { playRegisterSound, playNotificationSound } from '@/lib/sounds';
@@ -20,6 +20,7 @@ export default function CajaPage() {
   const [submitting, setSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState('');
   const [dbError, setDbError] = useState(null);
+  const [connectionError, setConnectionError] = useState(null);
 
   // Checkout
   const [paymentMethod, setPaymentMethod] = useState(''); // 'efectivo' | 'tarjeta' | 'transferencia'
@@ -40,13 +41,29 @@ export default function CajaPage() {
     }, 6000);
   }
 
+  const showSystemNotification = useCallback((title, body) => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body,
+            icon: '/favicon.ico',
+          });
+        } catch (err) {
+          console.warn('Error mostrando notificación nativa:', err);
+        }
+      }
+    }
+  }, []);
+
   // Carga de pedidos
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     setDbError(null);
+    setConnectionError(null);
     try {
       // 1. Pedidos sin pagar
-      const { data: unpaidData, error: unpaidError } = await supabase
+      const unpaidPromise = supabase
         .from('orders')
         .select(`
           *,
@@ -54,6 +71,8 @@ export default function CajaPage() {
         `)
         .eq('payment_status', 'unpaid')
         .order('created_at', { ascending: false });
+
+      const { data: unpaidData, error: unpaidError } = await promiseWithTimeout(unpaidPromise, 8000);
 
       if (unpaidError) {
         if (unpaidError.code === '42703' || (unpaidError.message && unpaidError.message.includes('payment_status'))) {
@@ -65,7 +84,7 @@ export default function CajaPage() {
       }
 
       // 2. Pedidos pagados recientemente (límite 15 para historial)
-      const { data: paidData, error: paidError } = await supabase
+      const paidPromise = supabase
         .from('orders')
         .select(`
           *,
@@ -74,6 +93,8 @@ export default function CajaPage() {
         .eq('payment_status', 'paid')
         .order('created_at', { ascending: false })
         .limit(15);
+
+      const { data: paidData, error: paidError } = await promiseWithTimeout(paidPromise, 8000);
 
       if (paidError) {
         if (paidError.code === '42703' || (paidError.message && paidError.message.includes('payment_status'))) {
@@ -90,10 +111,12 @@ export default function CajaPage() {
       
       let profilesMap = {};
       if (userIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
+        const profilesPromise = supabase
           .from('profiles')
           .select('id, full_name, email')
           .in('id', userIds);
+
+        const { data: profilesData, error: profilesError } = await promiseWithTimeout(profilesPromise, 8000);
         
         if (!profilesError && profilesData) {
           profilesData.forEach(p => {
@@ -117,6 +140,7 @@ export default function CajaPage() {
       setPaidOrders(paidWithProfiles);
     } catch (err) {
       console.error('Error cargando pedidos en caja:', err);
+      setConnectionError(err.message || 'Error de conexión con la base de datos (inactividad detectada). Por favor comprueba tu conexión.');
     } finally {
       setLoading(false);
     }
@@ -143,6 +167,11 @@ export default function CajaPage() {
           if (payload.eventType === 'INSERT') {
             playNotificationSound();
             addNotification(payload.new);
+            // Si la ventana no está en primer plano, disparar notificación nativa
+            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+              const mesa = payload.new.table_number || 'Sin mesa';
+              showSystemNotification('💵 ¡Nueva Cuenta por Cobrar!', `Mesa ${mesa} • Nuevo pedido registrado listo para facturar.`);
+            }
           }
           fetchOrders();
         })
@@ -177,7 +206,22 @@ export default function CajaPage() {
       window.removeEventListener('focus', handleReactivation);
       window.removeEventListener('online', handleReactivation);
     };
-  }, [fetchOrders]);
+  }, [fetchOrders, showSystemNotification]);
+
+  // Auto-recuperación silenciosa en Caja cada 5 segundos ante fallos de conexión
+  useEffect(() => {
+    let intervalId;
+    if (connectionError) {
+      console.log('[Caja] Programando reintento automático de carga en 5 segundos...');
+      intervalId = setInterval(() => {
+        console.log('[Caja] Auto-reintentando cargar pedidos...');
+        fetchOrders();
+      }, 5000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [connectionError, fetchOrders]);
 
   // Manejar cambio en el efectivo recibido
   useEffect(() => {
@@ -484,6 +528,25 @@ export default function CajaPage() {
                     className="w-full py-3.5 btn-gold rounded-xl font-bold transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-gold/15 cursor-pointer text-xs"
                   >
                     🔄 Reintentar Cargar Caja
+                  </button>
+                </div>
+              </div>
+            ) : connectionError ? (
+              // Error de conexión con botón de reintento premium en Caja
+              <div key="caja-error" className="flex-1 flex items-center justify-center py-16 px-4 animate-fade-in">
+                <div className="max-w-md w-full bg-dark-card border border-gold/20 rounded-2xl p-6 sm:p-8 text-center shadow-[0_0_30px_rgba(212,175,55,0.05)]">
+                  <div className="w-14 h-14 bg-red-500/10 rounded-full border border-red-500/25 flex items-center justify-center mx-auto text-2xl mb-4 text-red-400">
+                    ⚠️
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2">Error de conexión</h3>
+                  <p className="text-gray-400 text-xs sm:text-sm mb-6 leading-relaxed">
+                    No pudimos establecer comunicación con el servidor para cargar las cuentas de la Caja. Por favor comprueba tu conexión.
+                  </p>
+                  <button
+                    onClick={fetchOrders}
+                    className="w-full py-3.5 bg-gradient-to-tr from-gold to-yellow-400 text-black font-bold rounded-xl transition-all duration-200 hover:scale-[1.01] active:scale-95 shadow-[0_4px_15px_rgba(212,168,67,0.2)] text-xs flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>🔄</span> Reintentar Cargar Caja
                   </button>
                 </div>
               </div>
