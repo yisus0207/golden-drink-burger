@@ -42,6 +42,7 @@ export default function AdminPage() {
   const [orders, setOrders] = useState([]);
   const [orderItems, setOrderItems] = useState([]);
   const [dashRange, setDashRange] = useState(7);
+  const [selectedDate, setSelectedDate] = useState('');
 
   // Form para nueva categoría/mesa
   const [newCategory, setNewCategory] = useState('');
@@ -389,14 +390,30 @@ export default function AdminPage() {
 
           {/* ====== TAB: DASHBOARD ====== */}
           {tab === 'dashboard' && (() => {
-            const completed = orders.filter(o => o.status === 'ready');
+            // Filtrar órdenes por fecha seleccionada si existe
+            const displayOrders = selectedDate 
+              ? orders.filter(o => {
+                  const d = new Date(o.created_at);
+                  const year = d.getFullYear();
+                  const month = String(d.getMonth() + 1).padStart(2, '0');
+                  const day = String(d.getDate()).padStart(2, '0');
+                  return `${year}-${month}-${day}` === selectedDate;
+                })
+              : orders;
+
+            const displayOrderIds = new Set(displayOrders.map(o => o.id));
+            const displayItems = selectedDate
+              ? orderItems.filter(item => displayOrderIds.has(item.order_id))
+              : orderItems;
+
+            const completed = displayOrders.filter(o => o.status === 'ready');
             const totalRevenue = completed.reduce((sum, o) => sum + Number(o.total || 0), 0);
             const totalOrders = completed.length;
             const avgTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
             // Producto estrella
             const productCount = {};
-            orderItems.forEach(item => {
+            displayItems.forEach(item => {
               productCount[item.product_name] = (productCount[item.product_name] || 0) + item.quantity;
             });
             const topProductEntry = Object.entries(productCount).sort((a, b) => b[1] - a[1])[0];
@@ -408,18 +425,31 @@ export default function AdminPage() {
 
             // Status counts
             const statusCounts = { pending: 0, preparing: 0, ready: 0 };
-            orders.forEach(o => { if (statusCounts[o.status] !== undefined) statusCounts[o.status]++; });
+            displayOrders.forEach(o => { if (statusCounts[o.status] !== undefined) statusCounts[o.status]++; });
 
-            // Revenue por día
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - dashRange);
+            // Revenue por día (o por horas si se selecciona un día específico)
             const revenueByDay = (() => {
               const grouped = {};
-              completed.filter(o => new Date(o.created_at) >= cutoff).forEach(o => {
-                const day = new Date(o.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
-                grouped[day] = (grouped[day] || 0) + Number(o.total || 0);
-              });
-              return Object.entries(grouped).map(([day, total]) => ({ day, total }));
+              if (selectedDate) {
+                // Agrupar por hora del día seleccionado
+                completed.forEach(o => {
+                  const date = new Date(o.created_at);
+                  const hour = date.getHours().toString().padStart(2, '0') + ':00';
+                  grouped[hour] = (grouped[hour] || 0) + Number(o.total || 0);
+                });
+                return Object.entries(grouped)
+                  .sort((a, b) => a[0].localeCompare(b[0]))
+                  .map(([hour, total]) => ({ day: hour, total }));
+              } else {
+                // Agrupar por día para el rango (7/30 días)
+                const cutoff = new Date();
+                cutoff.setDate(cutoff.getDate() - dashRange);
+                completed.filter(o => new Date(o.created_at) >= cutoff).forEach(o => {
+                  const day = new Date(o.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+                  grouped[day] = (grouped[day] || 0) + Number(o.total || 0);
+                });
+                return Object.entries(grouped).map(([day, total]) => ({ day, total }));
+              }
             })();
 
             // Top 5 productos
@@ -433,11 +463,47 @@ export default function AdminPage() {
 
             return (
               <div className="animate-fade-in">
-                {/* Range selector */}
-                <div className="flex gap-2 mb-6">
-                  <button onClick={() => setDashRange(7)} className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${dashRange === 7 ? 'bg-gold text-black' : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'}`}>7 días</button>
-                  <button onClick={() => setDashRange(30)} className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${dashRange === 30 ? 'bg-gold text-black' : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'}`}>30 días</button>
-                  <button onClick={fetchDashboard} className="px-4 py-2 rounded-xl text-xs font-medium bg-dark-surface text-gray-400 border border-dark-border hover:text-gold hover:border-gold/30 transition-all">🔄 Actualizar</button>
+                {/* Selector de rango y selector de fecha */}
+                <div className="flex gap-3 mb-6 items-center flex-wrap">
+                  <button 
+                    onClick={() => { setDashRange(7); setSelectedDate(''); }} 
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${dashRange === 7 && !selectedDate ? 'bg-gold text-black' : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'}`}
+                  >
+                    7 días
+                  </button>
+                  <button 
+                    onClick={() => { setDashRange(30); setSelectedDate(''); }} 
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${dashRange === 30 && !selectedDate ? 'bg-gold text-black' : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'}`}
+                  >
+                    30 días
+                  </button>
+                  
+                  {/* Selector de Fecha Específica */}
+                  <div className="flex items-center gap-2 bg-dark-surface border border-dark-border px-3 py-1.5 rounded-xl hover:border-gold/30 transition-all">
+                    <span className="text-xs text-gray-400">📅 Filtrar Día:</span>
+                    <input 
+                      type="date" 
+                      value={selectedDate} 
+                      onChange={(e) => {
+                        setSelectedDate(e.target.value);
+                        setDashRange(0); // Limpiar rango preestablecido
+                      }}
+                      className="bg-transparent border-0 text-xs text-gold font-bold focus:outline-none focus:ring-0 cursor-pointer"
+                    />
+                    {selectedDate && (
+                      <button 
+                        onClick={() => { setSelectedDate(''); setDashRange(7); }} 
+                        className="text-gray-500 hover:text-white text-xs font-bold px-1 transition-colors"
+                        title="Limpiar fecha"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <button onClick={fetchDashboard} className="px-4 py-2 rounded-xl text-xs font-semibold bg-dark-surface text-gray-400 border border-dark-border hover:text-gold hover:border-gold/30 transition-all flex items-center gap-1.5">
+                    🔄 Actualizar
+                  </button>
                 </div>
 
                 {/* KPI Cards */}
