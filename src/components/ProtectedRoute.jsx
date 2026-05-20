@@ -24,10 +24,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-dark flex items-center justify-center">
+      <div key="loading-screen" className="min-h-screen bg-dark flex items-center justify-center notranslate" translate="no">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-gold/20 border-t-gold rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Cargando...</p>
+          <p className="text-gray-400 font-medium">Cargando...</p>
         </div>
       </div>
     );
@@ -38,7 +38,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   }
 
   return (
-    <div className="relative">
+    <div key="protected-content" className="relative">
       {children}
       <ChatWidget />
     </div>

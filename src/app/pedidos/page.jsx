@@ -218,7 +218,7 @@ export default function PedidosPage() {
         <Navbar />
 
         {/* 🔔 Toast Notifications para Pedidos Listos */}
-        <div className="fixed top-20 left-4 sm:left-1/2 sm:-translate-x-1/2 z-50 flex flex-col gap-3 pointer-events-none w-[90%] sm:w-auto max-w-sm">
+        <div className="fixed top-20 left-4 sm:left-1/2 sm:-translate-x-1/2 z-50 flex flex-col gap-3 pointer-events-none w-[90%] sm:w-auto max-w-sm notranslate" translate="no">
           {notifications.map((notif) => (
             <div
               key={notif.id}
@@ -244,7 +244,7 @@ export default function PedidosPage() {
 
         {/* Mensaje de éxito de envío */}
         {successMessage && (
-          <div className="fixed top-20 right-4 z-50 animate-slide-in pointer-events-none">
+          <div className="fixed top-20 right-4 z-50 animate-slide-in pointer-events-none notranslate" translate="no">
             <div className="bg-gold/10 border border-gold/30 text-gold px-6 py-4 rounded-xl shadow-2xl backdrop-blur-sm">
               <p className="font-semibold">{successMessage}</p>
             </div>
@@ -291,14 +291,14 @@ export default function PedidosPage() {
 
             {loading ? (
               // Spinner Premium Dorado de Carga Local
-              <div className="flex-1 flex flex-col items-center justify-center py-24 animate-pulse">
+              <div key="pedidos-loading" className="flex-1 flex flex-col items-center justify-center py-24 animate-pulse notranslate" translate="no">
                 <div className="w-14 h-14 border-4 border-gold/10 border-t-gold rounded-full animate-spin mb-4" />
                 <p className="text-gold/80 font-medium text-sm tracking-wider uppercase">Cargando menú de productos...</p>
                 <p className="text-gray-500 text-xs mt-2">Obteniendo la información más reciente</p>
               </div>
             ) : loadError ? (
               // Error Premium de Conexión con botón de reintento
-              <div className="flex-1 flex items-center justify-center py-16 px-4 animate-fade-in">
+              <div key="pedidos-error" className="flex-1 flex items-center justify-center py-16 px-4 animate-fade-in">
                 <div className="max-w-md w-full bg-dark-card border border-gold/20 rounded-2xl p-6 sm:p-8 text-center shadow-[0_0_30px_rgba(212,175,55,0.05)]">
                   <div className="w-14 h-14 bg-red-500/10 rounded-full border border-red-500/25 flex items-center justify-center mx-auto text-2xl mb-4 text-red-400">
                     ⚠️
@@ -316,7 +316,7 @@ export default function PedidosPage() {
                 </div>
               </div>
             ) : (
-              <>
+              <div key="pedidos-list" className="animate-fade-in">
                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 mt-6">
                   {filteredProducts.map(product => (
                     <ProductCard
@@ -328,7 +328,7 @@ export default function PedidosPage() {
                 </div>
 
                 {filteredProducts.length === 0 && (
-                  <div className="text-center text-gray-600 py-16 animate-fade-in">
+                  <div className="text-center text-gray-600 py-16">
                     <p className="text-5xl mb-3">{searchQuery ? '🔍' : '📦'}</p>
                     <p className="text-lg">
                       {searchQuery 
@@ -337,7 +337,7 @@ export default function PedidosPage() {
                     </p>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
 

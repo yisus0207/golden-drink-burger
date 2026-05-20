@@ -35,9 +35,6 @@ export default function ChatWidget() {
     return () => window.removeEventListener('cart-updated', handleCartUpdate);
   }, []);
   
-  // No renderizar si no hay usuario o no está montado (evita hydration mismatch)
-  if (!mounted || !user || !profile) return null;
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -51,6 +48,8 @@ export default function ChatWidget() {
   }, [isOpen, messages]);
 
   useEffect(() => {
+    if (!user) return; // Guard: no ejecutar si no hay usuario aún
+
     // Cargar historial de mensajes (últimos 50)
     const fetchMessages = async () => {
       const { data } = await supabase
@@ -98,7 +97,10 @@ export default function ChatWidget() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user.id]); // Solo suscribirse al montar y cuando cambie el user.id
+  }, [user?.id]); // Usar optional chaining para evitar crash si user es null
+
+  // No renderizar si no hay usuario o no está montado (evita hydration mismatch)
+  if (!mounted || !user || !profile) return null;
 
   const sendMessage = async (e) => {
     e.preventDefault();

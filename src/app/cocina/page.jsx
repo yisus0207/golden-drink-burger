@@ -99,7 +99,7 @@ export default function CocinaPage() {
         <Navbar />
 
         {/* 🔔 Toast Notifications — Mobile friendly */}
-        <div className="fixed top-16 left-0 right-0 sm:left-auto sm:right-4 sm:top-20 z-50 flex flex-col gap-2 sm:gap-3 pointer-events-none px-3 sm:px-0">
+        <div className="fixed top-16 left-0 right-0 sm:left-auto sm:right-4 sm:top-20 z-50 flex flex-col gap-2 sm:gap-3 pointer-events-none px-3 sm:px-0 notranslate" translate="no">
           {notifications.map((notif) => (
             <div
               key={notif.id}
@@ -148,14 +148,14 @@ export default function CocinaPage() {
 
           {loading && orders.length === 0 && completedOrders.length === 0 ? (
             // Spinner Premium de Carga Local
-            <div className="flex flex-col items-center justify-center py-24 animate-pulse">
+            <div key="cocina-loading" className="flex flex-col items-center justify-center py-24 animate-pulse notranslate" translate="no">
               <div className="w-14 h-14 border-4 border-gold/10 border-t-gold rounded-full animate-spin mb-4" />
               <p className="text-gold/80 font-medium text-sm tracking-wider uppercase">Cargando pedidos de cocina...</p>
               <p className="text-gray-500 text-xs mt-2">Sincronizando con el servidor en tiempo real</p>
             </div>
           ) : loadError ? (
             // Error de conexión con botón de reintento
-            <div className="flex items-center justify-center py-16 px-4 animate-fade-in">
+            <div key="cocina-error" className="flex items-center justify-center py-16 px-4 animate-fade-in">
               <div className="max-w-md w-full bg-dark-card border border-gold/20 rounded-2xl p-6 sm:p-8 text-center shadow-[0_0_30px_rgba(212,175,55,0.05)]">
                 <div className="w-14 h-14 bg-red-500/10 rounded-full border border-red-500/25 flex items-center justify-center mx-auto text-2xl mb-4 text-red-400">
                   ⚠️
@@ -173,7 +173,7 @@ export default function CocinaPage() {
               </div>
             </div>
           ) : (
-            <>
+            <div key="cocina-content" className="animate-fade-in">
               {/* Pendientes */}
               {pendingOrders.length > 0 && (
                 <div className="mb-6 sm:mb-8">
@@ -241,7 +241,7 @@ export default function CocinaPage() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>
