@@ -47,42 +47,26 @@ export default function PedidosPage() {
 
   const showSystemNotification = useCallback((title, body) => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
-      const options = {
-        body,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        vibrate: [200, 100, 200],
-      };
-
-      const fireNotification = () => {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.ready
-            .then((registration) => {
-              registration.showNotification(title, options);
-            })
-            .catch((err) => {
-              console.warn('Error mostrando con Service Worker en pedidos, usando fallback:', err);
-              try {
-                new Notification(title, options);
-              } catch (e) {
-                console.error(e);
-              }
-            });
-        } else {
-          try {
-            new Notification(title, options);
-          } catch (e) {
-            console.error(e);
-          }
-        }
-      };
-
       if (Notification.permission === 'granted') {
-        fireNotification();
+        try {
+          new Notification(title, {
+            body,
+            icon: '/favicon.ico',
+          });
+        } catch (err) {
+          console.warn('Error mostrando notificación nativa:', err);
+        }
       } else if (Notification.permission !== 'denied') {
         Notification.requestPermission().then(permission => {
           if (permission === 'granted') {
-            fireNotification();
+            try {
+              new Notification(title, {
+                body,
+                icon: '/favicon.ico',
+              });
+            } catch (err) {
+              console.warn('Error mostrando notificación nativa tras solicitar permiso:', err);
+            }
           }
         });
       }

@@ -11,17 +11,6 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Registrar el Service Worker para soportar notificaciones en móviles y de fondo
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then((reg) => {
-          console.log('Service Worker registrado correctamente con scope:', reg.scope);
-        })
-        .catch((err) => {
-          console.warn('Error al registrar Service Worker:', err);
-        });
-    }
-
     // Solicitar permiso de notificaciones nativas del navegador
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
