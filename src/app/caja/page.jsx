@@ -122,27 +122,60 @@ export default function CajaPage() {
     }
   }, []);
 
-  // Suscripción Realtime
+  // Suscripción Realtime y Manejo de Foco/Conexión
   useEffect(() => {
     fetchOrders();
 
-    const channel = supabase
-      .channel('cashier-view-channel')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'orders'
-      }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          playNotificationSound();
-          addNotification(payload.new);
-        }
+    let channel;
+
+    const connectRealtime = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+
+      channel = supabase
+        .channel('cashier-view-channel')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'orders'
+        }, (payload) => {
+          if (payload.eventType === 'INSERT') {
+            playNotificationSound();
+            addNotification(payload.new);
+          }
+          fetchOrders();
+        })
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            console.warn('Realtime channel error/closed, reconnecting in 3s...');
+            setTimeout(connectRealtime, 3000);
+          }
+        });
+    };
+
+    connectRealtime();
+
+    // Cuando el usuario regresa a la app o recupera el internet
+    const handleReactivation = async () => {
+      console.log('App reactivada (focus/online), validando sesión y refrescando datos...');
+      try {
+        // Forzar a Supabase a verificar y refrescar la sesión si es necesario
+        await supabase.auth.getSession();
         fetchOrders();
-      })
-      .subscribe();
+        connectRealtime();
+      } catch (err) {
+        console.error('Error reactivando app:', err);
+      }
+    };
+
+    window.addEventListener('focus', handleReactivation);
+    window.addEventListener('online', handleReactivation);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
+      window.removeEventListener('focus', handleReactivation);
+      window.removeEventListener('online', handleReactivation);
     };
   }, [fetchOrders]);
 

@@ -45,27 +45,58 @@ export default function PedidosPage() {
     }
   }, []);
 
+  // Suscripción Realtime y Blindaje ante Inactividad (Focus / Online)
   useEffect(() => {
     loadData();
 
-    // Suscripción a cambios de estado de pedidos para notificar al mesero cuando estén listos
-    const channel = supabase
-      .channel('cashier-orders')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'orders'
-      }, (payload) => {
-        // Solo notificar si el estado cambió a 'ready'
-        if (payload.new.status === 'ready' && payload.old.status !== 'ready') {
-          playNotificationSound();
-          addReadyNotification(payload.new);
-        }
-      })
-      .subscribe();
+    let channel;
+
+    const connectRealtime = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+
+      channel = supabase
+        .channel('cashier-orders')
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders'
+        }, (payload) => {
+          // Solo notificar si el estado cambió a 'ready'
+          if (payload.new.status === 'ready' && payload.old.status !== 'ready') {
+            playNotificationSound();
+            addReadyNotification(payload.new);
+          }
+        })
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            console.warn('Realtime de pedidos desconectado, reintentando en 3s...');
+            setTimeout(connectRealtime, 3000);
+          }
+        });
+    };
+
+    connectRealtime();
+
+    const handleReactivation = async () => {
+      console.log('Pedidos reactivado (focus/online), validando sesión y refrescando...');
+      try {
+        await supabase.auth.getSession();
+        loadData();
+        connectRealtime();
+      } catch (err) {
+        console.error('Error reactivando pedidos:', err);
+      }
+    };
+
+    window.addEventListener('focus', handleReactivation);
+    window.addEventListener('online', handleReactivation);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
+      window.removeEventListener('focus', handleReactivation);
+      window.removeEventListener('online', handleReactivation);
     };
   }, [loadData]);
   

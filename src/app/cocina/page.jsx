@@ -55,26 +55,58 @@ export default function CocinaPage() {
     }
   }, []);
 
+  // Suscripción Realtime y Blindaje ante Inactividad (Focus / Online)
   useEffect(() => {
     fetchOrders();
 
-    const channel = supabase
-      .channel('kitchen-orders')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'orders'
-      }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          playNotificationSound();
-          addNotification(payload.new);
-        }
+    let channel;
+
+    const connectRealtime = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+
+      channel = supabase
+        .channel('kitchen-orders')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'orders'
+        }, (payload) => {
+          if (payload.eventType === 'INSERT') {
+            playNotificationSound();
+            addNotification(payload.new);
+          }
+          fetchOrders();
+        })
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+            console.warn('Realtime de cocina desconectado, reintentando en 3s...');
+            setTimeout(connectRealtime, 3000);
+          }
+        });
+    };
+
+    connectRealtime();
+
+    const handleReactivation = async () => {
+      console.log('Cocina reactivada (focus/online), validando sesión y refrescando...');
+      try {
+        await supabase.auth.getSession();
         fetchOrders();
-      })
-      .subscribe();
+        connectRealtime();
+      } catch (err) {
+        console.error('Error reactivando cocina:', err);
+      }
+    };
+
+    window.addEventListener('focus', handleReactivation);
+    window.addEventListener('online', handleReactivation);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
+      window.removeEventListener('focus', handleReactivation);
+      window.removeEventListener('online', handleReactivation);
     };
   }, [fetchOrders]);
 
