@@ -755,11 +755,11 @@ export default function CajaPage() {
                             <td className="py-2 pr-2 leading-tight">
                               <span className="font-bold">{item.quantity}x</span> {item.product_name}
                               <div className="text-[9px] text-gray-400 font-normal">
-                                c/u: $${parseFloat(item.price).toLocaleString('es-CO')}
+                                c/u: ${parseFloat(item.price).toLocaleString('es-CO')}
                               </div>
                             </td>
                             <td className="py-2 text-right valign-top font-bold">
-                              $${(item.price * item.quantity).toLocaleString('es-CO')}
+                              ${(item.price * item.quantity).toLocaleString('es-CO')}
                             </td>
                           </tr>
                         ))}
@@ -772,15 +772,15 @@ export default function CajaPage() {
                     <div className="space-y-1.5 font-bold text-xs">
                       <div className="flex justify-between font-normal text-[10px] text-gray-600">
                         <span>Subtotal Neto:</span>
-                        <span>$${(parseFloat(selectedOrder.total) * 0.92).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+                        <span>${(parseFloat(selectedOrder.total) * 0.92).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between font-normal text-[10px] text-gray-600">
                         <span>Impoconsumo (8% incl.):</span>
-                        <span>$${(parseFloat(selectedOrder.total) * 0.08).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+                        <span>${(parseFloat(selectedOrder.total) * 0.08).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between text-sm border-t border-dashed border-gray-400 pt-2 font-black text-black">
                         <span>TOTAL A PAGAR:</span>
-                        <span>$${parseFloat(selectedOrder.total).toLocaleString('es-CO')} COP</span>
+                        <span>${parseFloat(selectedOrder.total).toLocaleString('es-CO')} COP</span>
                       </div>
                     </div>
 
