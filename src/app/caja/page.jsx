@@ -650,7 +650,7 @@ export default function CajaPage() {
               <div className="flex-1 flex flex-col h-full overflow-hidden">
 
                 {/* 1. Recibo de papel térmico (Scrollable) */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-dark-surface/40 flex flex-col items-center">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6 bg-dark-surface/40 flex flex-col items-center">
 
                   {/* Digital Thermal Ticket Container */}
                   <div className="w-full max-w-sm bg-[#FDFBF7] text-[#1E1B18] shadow-2xl p-6 font-mono text-xs border-t-8 border-b-8 border-dashed border-[#E3D9C9] rounded-sm relative overflow-hidden select-none animate-slide-up">
@@ -773,7 +773,7 @@ export default function CajaPage() {
                 </div>
 
                 {/* 2. Panel de métodos de pago y botones de acción */}
-                <div className="p-4 sm:p-6 border-t border-dark-border bg-dark-card relative z-20">
+                <div className="p-4 sm:p-6 pb-28 md:pb-6 border-t border-dark-border bg-dark-card relative z-20">
                   {selectedOrder.payment_status === 'unpaid' ? (
                     <div className="space-y-4">
                       <h4 className="text-sm font-bold text-white uppercase tracking-wider">
