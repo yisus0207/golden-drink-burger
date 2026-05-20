@@ -278,7 +278,15 @@ export default function AdminPage() {
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // Manejo amigable para usuarios que ya existen
+        if (authError.message?.toLowerCase().includes('already registered') || authError.status === 400) {
+          alert('⚠️ El correo electrónico ya se encuentra registrado en el sistema. Por favor, utiliza otro correo.');
+          setLoading(false);
+          return;
+        }
+        throw authError;
+      }
 
       // El trigger de Supabase en el backend se encarga automáticamente de crear 
       // el registro en la tabla 'profiles' saltándose las restricciones RLS.
