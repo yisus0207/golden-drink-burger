@@ -11,6 +11,19 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   const router = useRouter();
 
   useEffect(() => {
+    // Limpiar cualquier Service Worker residual que haya quedado del despliegue anterior
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister().then(() => {
+            console.log('[Cleanup] Service Worker desregistrado:', registration.scope);
+          });
+        });
+      }).catch(err => {
+        console.warn('Error limpiando Service Workers:', err);
+      });
+    }
+
     // Solicitar permiso de notificaciones nativas del navegador
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
