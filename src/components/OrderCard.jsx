@@ -75,11 +75,10 @@ export default function OrderCard({ order, onStatusChange }) {
       {config.nextAction && (
         <button
           onClick={() => onStatusChange(order.id, config.nextStatus)}
-          className={`mt-auto w-full py-2.5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 active:scale-95 ${
-            order.status === 'pending'
+          className={`mt-auto w-full py-2.5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 active:scale-95 ${order.status === 'pending'
               ? 'bg-status-preparing/20 text-status-preparing hover:bg-status-preparing hover:text-black border border-status-preparing/30'
               : 'bg-status-ready/20 text-status-ready hover:bg-status-ready hover:text-black border border-status-ready/30'
-          }`}
+            }`}
         >
           {config.nextAction}
         </button>

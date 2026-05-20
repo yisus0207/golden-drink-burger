@@ -50,7 +50,7 @@ export default function AdminPage() {
 
   // Gestión de Usuarios
   const [users, setUsers] = useState([]);
-  const [userForm, setUserForm] = useState({ full_name: '', email: '', password: '', role: 'cajero' });
+  const [userForm, setUserForm] = useState({ full_name: '', email: '', password: '', role: 'mesero' });
 
   const [modalConfig, setModalConfig] = useState({
     isOpen: false,
@@ -284,7 +284,7 @@ export default function AdminPage() {
       // Damos un pequeño margen de tiempo (500ms) para que el trigger termine antes de recargar la tabla
       setTimeout(() => {
         alert('¡Usuario registrado con éxito!');
-        setUserForm({ full_name: '', email: '', password: '', role: 'cajero' });
+        setUserForm({ full_name: '', email: '', password: '', role: 'mesero' });
         fetchUsers();
         setLoading(false);
       }, 500);
@@ -865,6 +865,7 @@ export default function AdminPage() {
                           onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
                           className="w-full px-4 py-3 input-dark rounded-xl appearance-none bg-dark-surface cursor-pointer"
                         >
+                          <option value="mesero">Mesero</option>
                           <option value="cajero">Cajero</option>
                           <option value="cocinero">Cocinero</option>
                           <option value="admin">Administrador</option>
@@ -903,6 +904,8 @@ export default function AdminPage() {
                                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
                                   profile.role === 'admin' ? 'bg-gold/10 text-gold border-gold/20' :
                                   profile.role === 'cocinero' ? 'bg-status-preparing/10 text-status-preparing border-status-preparing/20' :
+                                  profile.role === 'mesero' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                                  profile.role === 'cajero' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
                                   'bg-gray-500/10 text-gray-400 border-gray-500/20'
                                 }`}>
                                   {profile.role}

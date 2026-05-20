@@ -38,6 +38,8 @@ export default function LoginPage() {
       router.push('/cocina');
     } else if (profileData?.role === 'admin') {
       router.push('/admin');
+    } else if (profileData?.role === 'cajero') {
+      router.push('/caja');
     } else {
       router.push('/pedidos');
     }

@@ -14,7 +14,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
       if (!user) {
         router.push('/login');
       } else if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
-        if (profile.role === 'cajero') router.push('/pedidos');
+        if (profile.role === 'mesero') router.push('/pedidos');
+        else if (profile.role === 'cajero') router.push('/caja');
         else if (profile.role === 'cocinero') router.push('/cocina');
         else router.push('/login');
       }

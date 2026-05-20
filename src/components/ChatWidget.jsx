@@ -5,15 +5,30 @@ import { MessageCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { playChatSound } from '@/lib/sounds';
+import { usePathname } from 'next/navigation';
 
 export default function ChatWidget() {
   const { user, profile } = useAuth();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isMenuExpanded, setIsMenuExpanded] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
   const messagesEndRef = useRef(null);
   const isOpenRef = useRef(isOpen);
+
+  const isPedidosPage = pathname === '/pedidos';
+
+  // Sincronizar el número de artículos en el carrito
+  useEffect(() => {
+    const handleCartUpdate = (e) => {
+      setCartCount(e.detail);
+    };
+    window.addEventListener('cart-updated', handleCartUpdate);
+    return () => window.removeEventListener('cart-updated', handleCartUpdate);
+  }, []);
   
   // No renderizar si no hay usuario (ej. pantalla de login)
   if (!user || !profile) return null;
@@ -106,27 +121,25 @@ export default function ChatWidget() {
       case 'admin': return 'text-purple-400';
       case 'cocinero': return 'text-orange-400';
       case 'cajero': return 'text-blue-400';
+      case 'mesero': return 'text-emerald-400';
       default: return 'text-gold';
     }
   };
 
   return (
     <>
-      {/* Botón flotante animado */}
+      {/* 1. Desktop Floating Chat Button (Hidden on Mobile) */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-50 flex items-center justify-center hover:scale-110 transition-transform duration-300 ${isOpen ? 'hidden sm:flex' : 'flex'}`}
+        className={`hidden md:flex fixed bottom-6 right-6 z-50 items-center justify-center hover:scale-110 transition-transform duration-300 ${isOpen ? 'md:hidden' : 'md:flex'}`}
       >
         <div className="relative animate-float">
-          {/* Icono de mensaje estilo 3D */}
           <MessageCircle 
             className="w-16 h-16 text-gold drop-shadow-[0_10px_15px_rgba(212,175,55,0.4)]" 
             fill="currentColor" 
             strokeWidth={1.5} 
             stroke="#1a1a1a"
           />
-          
-          {/* Badge de no leídos */}
           {unreadCount > 0 && !isOpen && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-dark shadow-lg">
               {unreadCount > 9 ? '9+' : unreadCount}
@@ -134,6 +147,93 @@ export default function ChatWidget() {
           )}
         </div>
       </button>
+
+      {/* 2. Mobile Floating Quick Actions Menu (Hidden on Desktop) */}
+      {/* Overlay to close menu on tap outside */}
+      {isMenuExpanded && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] md:hidden animate-fade-in"
+          onClick={() => setIsMenuExpanded(false)}
+        />
+      )}
+
+      {/* Quick Actions Trigger (Mobile Peek Tab) */}
+      <button
+        onClick={() => setIsMenuExpanded(!isMenuExpanded)}
+        className={`md:hidden fixed right-0 bottom-40 z-50 flex items-center justify-center transition-all duration-300 active:scale-95 ${
+          isMenuExpanded 
+            ? 'translate-x-[-80px] bg-dark-card border-gold/40' 
+            : 'translate-x-3.5 hover:translate-x-1 bg-gold/10 hover:bg-gold/20'
+        } w-10 h-16 rounded-l-2xl border border-r-0 border-gold/30 shadow-[0_4px_25px_rgba(0,0,0,0.6)] group`}
+      >
+        <div className="flex flex-col items-center gap-1 text-gold">
+          <span className={`text-[10px] font-bold transition-transform duration-300 ${isMenuExpanded ? 'rotate-180' : ''}`}>
+            ◀
+          </span>
+          <div className="flex flex-col gap-0.5 opacity-60">
+            <span className="w-1.5 h-1.5 bg-gold rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-gold rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-gold rounded-full"></span>
+          </div>
+          {(unreadCount > 0 || (isPedidosPage && cartCount > 0)) && !isMenuExpanded && (
+            <span className="absolute -top-1 -left-1 w-3.5 h-3.5 bg-red-500 rounded-full animate-pulse border-2 border-dark" />
+          )}
+        </div>
+      </button>
+
+      {/* Chat Action Icon (Mobile Radial Fan) */}
+      <button
+        onClick={() => {
+          setIsOpen(true);
+          setIsMenuExpanded(false);
+        }}
+        className={`md:hidden fixed right-4 bottom-40 z-50 flex items-center justify-center transition-all duration-300 w-14 h-14 bg-dark-card border border-gold/30 rounded-full shadow-2xl ${
+          isMenuExpanded 
+            ? isPedidosPage 
+              ? 'scale-100 translate-x-[-76px] translate-y-[-48px] opacity-100'
+              : 'scale-100 translate-x-[-76px] translate-y-0 opacity-100'
+            : 'scale-0 translate-x-0 translate-y-0 opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="relative">
+          <MessageCircle 
+            className="w-8 h-8 text-gold" 
+            fill="currentColor" 
+            strokeWidth={1.5} 
+            stroke="#1a1a1a"
+          />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-dark shadow-md">
+              {unreadCount}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {/* Cart Action Icon (Mobile Radial Fan - Only on /pedidos page) */}
+      {isPedidosPage && (
+        <button
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('open-cart'));
+            setIsMenuExpanded(false);
+          }}
+          className={`md:hidden fixed right-4 bottom-40 z-50 flex items-center justify-center transition-all duration-300 w-14 h-14 bg-gradient-to-tr from-gold to-yellow-400 text-black rounded-full shadow-2xl hover:scale-105 active:scale-95 ${
+            isMenuExpanded 
+              ? 'scale-100 translate-x-[-76px] translate-y-[48px] opacity-100'
+              : 'scale-0 translate-x-0 translate-y-0 opacity-0 pointer-events-none'
+          }`}
+        >
+          <div className="relative text-xl">
+            🛒
+            {cartCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-dark shadow-md animate-bounce">
+                {cartCount}
+              </span>
+            )}
+          </div>
+        </button>
+      )}
+
 
       {/* Panel lateral de chat */}
       <div 

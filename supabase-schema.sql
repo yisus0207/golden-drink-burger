@@ -15,7 +15,7 @@ CREATE TABLE public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email TEXT NOT NULL,
   full_name TEXT,
-  role TEXT NOT NULL DEFAULT 'cajero' CHECK (role IN ('cajero', 'cocinero', 'admin')),
+  role TEXT NOT NULL DEFAULT 'mesero' CHECK (role IN ('mesero', 'cajero', 'cocinero', 'admin')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -58,6 +58,8 @@ CREATE TABLE public.orders (
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'preparing', 'ready')),
   total DECIMAL(10,2) NOT NULL DEFAULT 0,
   table_number TEXT,
+  payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'paid')),
+  payment_method TEXT CHECK (payment_method IN ('efectivo', 'tarjeta', 'transferencia')),
   created_by UUID REFERENCES auth.users(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -86,7 +88,7 @@ BEGIN
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'cajero')
+    COALESCE(NEW.raw_user_meta_data->>'role', 'mesero')
   );
   RETURN NEW;
 END;

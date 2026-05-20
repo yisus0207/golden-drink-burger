@@ -69,3 +69,45 @@ export function playChatSound() {
     console.log('Audio no disponible para chat');
   }
 }
+
+export function playRegisterSound() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // 1. Campana alta (ding de caja registradora)
+    const oscBell = audioContext.createOscillator();
+    const gainBell = audioContext.createGain();
+    
+    oscBell.connect(gainBell);
+    gainBell.connect(audioContext.destination);
+    
+    oscBell.type = 'sine';
+    oscBell.frequency.setValueAtTime(1760, audioContext.currentTime); // Nota La alta
+    
+    gainBell.gain.setValueAtTime(0, audioContext.currentTime);
+    gainBell.gain.linearRampToValueAtTime(0.35, audioContext.currentTime + 0.01);
+    gainBell.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+    
+    oscBell.start(audioContext.currentTime);
+    oscBell.stop(audioContext.currentTime + 0.6);
+    
+    // 2. Jingle de monedas (chinchín rápido)
+    const oscCoin = audioContext.createOscillator();
+    const gainCoin = audioContext.createGain();
+    
+    oscCoin.connect(gainCoin);
+    gainCoin.connect(audioContext.destination);
+    
+    oscCoin.type = 'triangle';
+    oscCoin.frequency.setValueAtTime(2200, audioContext.currentTime + 0.04);
+    
+    gainCoin.gain.setValueAtTime(0, audioContext.currentTime + 0.04);
+    gainCoin.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+    gainCoin.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+    
+    oscCoin.start(audioContext.currentTime + 0.04);
+    oscCoin.stop(audioContext.currentTime + 0.25);
+  } catch (e) {
+    console.log('Audio no disponible para caja');
+  }
+}

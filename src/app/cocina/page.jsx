@@ -12,6 +12,8 @@ export default function CocinaPage() {
   const [completedOrders, setCompletedOrders] = useState([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const notifId = useRef(0);
 
   function addNotification(order) {
@@ -24,22 +26,33 @@ export default function CocinaPage() {
   }
 
   const fetchOrders = useCallback(async () => {
-    const { data: active } = await supabase
-      .from('orders')
-      .select('*, order_items(*)')
-      .in('status', ['pending', 'preparing'])
-      .order('created_at', { ascending: true });
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const { data: active, error: activeError } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .in('status', ['pending', 'preparing'])
+        .order('created_at', { ascending: true });
 
-    setOrders(active || []);
+      if (activeError) throw activeError;
+      setOrders(active || []);
 
-    const { data: completed } = await supabase
-      .from('orders')
-      .select('*, order_items(*)')
-      .eq('status', 'ready')
-      .order('created_at', { ascending: false })
-      .limit(10);
+      const { data: completed, error: completedError } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('status', 'ready')
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-    setCompletedOrders(completed || []);
+      if (completedError) throw completedError;
+      setCompletedOrders(completed || []);
+    } catch (err) {
+      console.error('Error cargando pedidos en cocina:', err);
+      setLoadError(err.message || 'Error de conexión con la base de datos');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -119,87 +132,116 @@ export default function CocinaPage() {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-gold/10 border border-gold/20 px-4 py-2.5 sm:px-5 sm:py-3 rounded-xl">
                 <span className="text-gold font-bold text-xl sm:text-2xl">{activeCount}</span>
-                <span className="text-gray-400 text-xs sm:text-sm leading-tight">pedidos<br/>activos</span>
+                <span className="text-gray-400 text-xs sm:text-sm leading-tight">pedidos<br />activos</span>
               </div>
               <button
                 onClick={() => setShowCompleted(!showCompleted)}
-                className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-                  showCompleted
+                className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-medium transition-all ${showCompleted
                     ? 'bg-status-ready/10 text-status-ready border border-status-ready/30'
                     : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'
-                }`}
+                  }`}
               >
                 {showCompleted ? '✅ Ocultar' : `✅ Listos (${completedOrders.length})`}
               </button>
             </div>
           </div>
 
-          {/* Pendientes */}
-          {pendingOrders.length > 0 && (
-            <div className="mb-6 sm:mb-8">
-              <h3 className="text-base sm:text-lg font-semibold text-status-pending mb-3 sm:mb-4 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 bg-status-pending rounded-full animate-pulse" />
-                Pendientes ({pendingOrders.length})
-              </h3>
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                {pendingOrders.map(order => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onStatusChange={updateStatus}
-                  />
-                ))}
+          {loading && orders.length === 0 && completedOrders.length === 0 ? (
+            // Spinner Premium de Carga Local
+            <div className="flex flex-col items-center justify-center py-24 animate-pulse">
+              <div className="w-14 h-14 border-4 border-gold/10 border-t-gold rounded-full animate-spin mb-4" />
+              <p className="text-gold/80 font-medium text-sm tracking-wider uppercase">Cargando pedidos de cocina...</p>
+              <p className="text-gray-500 text-xs mt-2">Sincronizando con el servidor en tiempo real</p>
+            </div>
+          ) : loadError ? (
+            // Error de conexión con botón de reintento
+            <div className="flex items-center justify-center py-16 px-4 animate-fade-in">
+              <div className="max-w-md w-full bg-dark-card border border-gold/20 rounded-2xl p-6 sm:p-8 text-center shadow-[0_0_30px_rgba(212,175,55,0.05)]">
+                <div className="w-14 h-14 bg-red-500/10 rounded-full border border-red-500/25 flex items-center justify-center mx-auto text-2xl mb-4 text-red-400">
+                  ⚠️
+                </div>
+                <h3 className="text-lg font-bold text-white mb-2">Error de conexión</h3>
+                <p className="text-gray-400 text-xs sm:text-sm mb-6 leading-relaxed">
+                  No pudimos establecer comunicación con el servidor para cargar las órdenes de cocina. Por favor comprueba tu conexión.
+                </p>
+                <button
+                  onClick={fetchOrders}
+                  className="w-full py-3.5 bg-gradient-to-tr from-gold to-yellow-400 text-black font-bold rounded-xl transition-all duration-200 hover:scale-[1.01] active:scale-95 shadow-[0_4px_15px_rgba(212,168,67,0.2)] text-xs flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>🔄</span> Reintentar Cargar
+                </button>
               </div>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Pendientes */}
+              {pendingOrders.length > 0 && (
+                <div className="mb-6 sm:mb-8">
+                  <h3 className="text-base sm:text-lg font-semibold text-status-pending mb-3 sm:mb-4 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-status-pending rounded-full animate-pulse" />
+                    Pendientes ({pendingOrders.length})
+                  </h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                    {pendingOrders.map(order => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        onStatusChange={updateStatus}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* En preparación */}
-          {preparingOrders.length > 0 && (
-            <div className="mb-6 sm:mb-8">
-              <h3 className="text-base sm:text-lg font-semibold text-status-preparing mb-3 sm:mb-4 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 bg-status-preparing rounded-full animate-pulse" />
-                En Preparación ({preparingOrders.length})
-              </h3>
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                {preparingOrders.map(order => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onStatusChange={updateStatus}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+              {/* En preparación */}
+              {preparingOrders.length > 0 && (
+                <div className="mb-6 sm:mb-8">
+                  <h3 className="text-base sm:text-lg font-semibold text-status-preparing mb-3 sm:mb-4 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-status-preparing rounded-full animate-pulse" />
+                    En Preparación ({preparingOrders.length})
+                  </h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                    {preparingOrders.map(order => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        onStatusChange={updateStatus}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Sin pedidos */}
-          {orders.length === 0 && (
-            <div className="text-center text-gray-600 py-16 sm:py-24">
-              <p className="text-5xl sm:text-7xl mb-4">👨‍🍳</p>
-              <p className="text-lg sm:text-xl font-medium text-gray-400">No hay pedidos pendientes</p>
-              <p className="text-xs sm:text-sm mt-2 text-gray-600">
-                Los nuevos pedidos aparecerán aquí automáticamente 🔔
-              </p>
-            </div>
-          )}
+              {/* Sin pedidos */}
+              {orders.length === 0 && (
+                <div className="text-center text-gray-600 py-16 sm:py-24">
+                  <p className="text-5xl sm:text-7xl mb-4">👨‍🍳</p>
+                  <p className="text-lg sm:text-xl font-medium text-gray-400">No hay pedidos pendientes</p>
+                  <p className="text-xs sm:text-sm mt-2 text-gray-600">
+                    Los nuevos pedidos aparecerán aquí automáticamente 🔔
+                  </p>
+                </div>
+              )}
 
-          {/* Pedidos completados */}
-          {showCompleted && completedOrders.length > 0 && (
-            <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-dark-border">
-              <h3 className="text-base sm:text-lg font-semibold text-status-ready mb-3 sm:mb-4 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 bg-status-ready rounded-full" />
-                Completados
-              </h3>
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 opacity-60">
-                {completedOrders.map(order => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onStatusChange={updateStatus}
-                  />
-                ))}
-              </div>
-            </div>
+              {/* Pedidos completados */}
+              {showCompleted && completedOrders.length > 0 && (
+                <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-dark-border">
+                  <h3 className="text-base sm:text-lg font-semibold text-status-ready mb-3 sm:mb-4 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-status-ready rounded-full" />
+                    Completados
+                  </h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 opacity-60">
+                    {completedOrders.map(order => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        onStatusChange={updateStatus}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
