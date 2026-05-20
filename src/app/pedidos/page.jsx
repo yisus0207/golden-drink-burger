@@ -56,6 +56,19 @@ export default function PedidosPage() {
         } catch (err) {
           console.warn('Error mostrando notificación nativa:', err);
         }
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            try {
+              new Notification(title, {
+                body,
+                icon: '/favicon.ico',
+              });
+            } catch (err) {
+              console.warn('Error mostrando notificación nativa tras solicitar permiso:', err);
+            }
+          }
+        });
       }
     }
   }, []);
@@ -82,11 +95,9 @@ export default function PedidosPage() {
           if (payload.new.status === 'ready' && payload.old.status !== 'ready') {
             playNotificationSound();
             addReadyNotification(payload.new);
-            // Si la ventana no está visible, disparar notificación nativa
-            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-              const mesa = payload.new.table_number || 'Sin mesa';
-              showSystemNotification('✅ ¡Pedido Listo para Servir!', `La orden #${payload.new.id} de la mesa ${mesa} está lista.`);
-            }
+            // Disparar notificación nativa siempre para fácil validación
+            const mesa = payload.new.table_number || 'Sin mesa';
+            showSystemNotification('✅ ¡Pedido Listo para Servir!', `La orden #${payload.new.id} de la mesa ${mesa} está lista.`);
           }
         })
         .subscribe((status) => {

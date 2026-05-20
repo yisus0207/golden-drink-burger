@@ -52,6 +52,19 @@ export default function CajaPage() {
         } catch (err) {
           console.warn('Error mostrando notificación nativa:', err);
         }
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            try {
+              new Notification(title, {
+                body,
+                icon: '/favicon.ico',
+              });
+            } catch (err) {
+              console.warn('Error mostrando notificación nativa tras solicitar permiso:', err);
+            }
+          }
+        });
       }
     }
   }, []);
@@ -167,11 +180,9 @@ export default function CajaPage() {
           if (payload.eventType === 'INSERT') {
             playNotificationSound();
             addNotification(payload.new);
-            // Si la ventana no está en primer plano, disparar notificación nativa
-            if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
-              const mesa = payload.new.table_number || 'Sin mesa';
-              showSystemNotification('💵 ¡Nueva Cuenta por Cobrar!', `Mesa ${mesa} • Nuevo pedido registrado listo para facturar.`);
-            }
+            // Disparar notificación nativa siempre para fácil validación
+            const mesa = payload.new.table_number || 'Sin mesa';
+            showSystemNotification('💵 ¡Nueva Cuenta por Cobrar!', `Mesa ${mesa} • Nuevo pedido registrado listo para facturar.`);
           }
           fetchOrders();
         })
