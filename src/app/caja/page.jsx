@@ -134,7 +134,7 @@ export default function CajaPage() {
       }
 
       channel = supabase
-        .channel('cashier-view-channel')
+        .channel(`cashier-view-channel-${Date.now()}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',

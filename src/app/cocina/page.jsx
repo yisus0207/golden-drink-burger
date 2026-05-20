@@ -67,7 +67,7 @@ export default function CocinaPage() {
       }
 
       channel = supabase
-        .channel('kitchen-orders')
+        .channel(`kitchen-orders-${Date.now()}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',

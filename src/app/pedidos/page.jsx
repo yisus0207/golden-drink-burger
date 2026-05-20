@@ -57,7 +57,7 @@ export default function PedidosPage() {
       }
 
       channel = supabase
-        .channel('cashier-orders')
+        .channel(`cashier-orders-${Date.now()}`)
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
