@@ -66,26 +66,32 @@ export function AuthProvider({ children }) {
     );
 
     // 3. Mecanismo de reactivación proactivo ante reactivación y suspensión de pestañas
-    // Se ejecuta al volver a enfocar la app o recuperar internet (especialmente útil en móviles)
+    // Se ejecuta al volver a enfocar la app o recuperar internet
     const handleReactivation = () => {
-      console.log('[AuthContext] Reactivación detectada (focus/online). Validando sesión...');
-      checkAndRefreshSession();
+      if (document.visibilityState === 'visible') {
+        console.log('[AuthContext] App visible nuevamente. Sincronizando estado...');
+        checkAndRefreshSession();
+      }
     };
 
+    window.addEventListener('visibilitychange', handleReactivation);
     window.addEventListener('focus', handleReactivation);
     window.addEventListener('online', handleReactivation);
 
     // 4. Intervalo preventivo de verificación cada 5 minutos
-    // Evita la caducidad por inactividad en pantallas encendidas continuamente (caja o cocina)
+    // Solo se ejecuta si la página es visible para evitar errores de timeout en segundo plano
     const sessionInterval = setInterval(() => {
-      console.log('[AuthContext] Verificación preventiva de sesión...');
-      checkAndRefreshSession();
+      if (document.visibilityState === 'visible') {
+        console.log('[AuthContext] Verificación preventiva de sesión...');
+        checkAndRefreshSession();
+      }
     }, 5 * 60 * 1000);
 
     return () => {
       subscription.unsubscribe();
       clearTimeout(timeout);
       clearInterval(sessionInterval);
+      window.removeEventListener('visibilitychange', handleReactivation);
       window.removeEventListener('focus', handleReactivation);
       window.removeEventListener('online', handleReactivation);
     };

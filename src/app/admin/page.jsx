@@ -5,6 +5,7 @@ import { supabase, createTempClient } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ConfirmModal from '@/components/ConfirmModal';
+import AIConsole from '@/components/AIConsole';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, AreaChart, Area
@@ -334,6 +335,48 @@ export default function AdminPage() {
     });
   }
 
+  // --- LÓGICA DE LIMPIEZA DE PEDIDOS ---
+  async function performDeleteAllOrders() {
+    setLoading(true);
+    try {
+      console.log("[Admin] Iniciando limpieza de base de datos de pedidos...");
+      
+      // Usamos .gte('id', 0) que es más robusto para capturar todos los serials
+      const { error, count } = await supabase
+        .from('orders')
+        .delete({ count: 'exact' })
+        .gte('id', 0);
+
+      if (error) throw error;
+
+      console.log(`[Admin] Limpieza completada. Filas afectadas: ${count}`);
+
+      if (count === 0) {
+        alert('⚠️ No se eliminó ningún pedido. Esto sucede generalmente cuando las políticas RLS de Supabase no permiten el borrado. \n\nPor favor, asegúrate de haber ejecutado el SQL de permisos en el panel de Supabase.');
+      } else {
+        alert(`✅ Historial limpiado con éxito. Se eliminaron ${count} pedidos.`);
+      }
+      
+      fetchDashboard();
+    } catch (err) {
+      console.error('[Admin] Error fatal al eliminar pedidos:', err);
+      alert('❌ Error al eliminar pedidos: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setLoading(false);
+      setModalConfig({ isOpen: false });
+    }
+  }
+
+  function handleClearOrders() {
+    setModalConfig({
+      isOpen: true,
+      title: '⚠️ ACCIÓN CRÍTICA: Limpiar Historial',
+      message: '¿Estás ABSOLUTAMENTE seguro de borrar TODOS los pedidos? Esta acción eliminará el historial de ventas, las estadísticas del dashboard y los items de cada pedido para siempre.',
+      context: 'ELIMINAR TODO EL HISTORIAL',
+      onConfirm: performDeleteAllOrders
+    });
+  }
+
   return (
     <ProtectedRoute allowedRoles={['admin']}>
       <div className="min-h-screen bg-dark">
@@ -394,6 +437,16 @@ export default function AdminPage() {
               }`}
             >
               👥 Usuarios
+            </button>
+            <button
+              onClick={() => setTab('ai-console')}
+              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                tab === 'ai-console'
+                  ? 'bg-gold text-black'
+                  : 'bg-dark-surface text-gray-400 border border-dark-border hover:text-white'
+              }`}
+            >
+              🤖 Consola IA
             </button>
           </div>
 
@@ -512,6 +565,14 @@ export default function AdminPage() {
 
                   <button onClick={fetchDashboard} className="px-4 py-2 rounded-xl text-xs font-semibold bg-dark-surface text-gray-400 border border-dark-border hover:text-gold hover:border-gold/30 transition-all flex items-center gap-1.5">
                     🔄 Actualizar
+                  </button>
+
+                  <button 
+                    onClick={handleClearOrders}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all flex items-center gap-1.5 ml-auto"
+                    title="Borrar todos los pedidos"
+                  >
+                    🗑️ Limpiar Historial
                   </button>
                 </div>
 
@@ -1006,6 +1067,13 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ====== TAB: CONSOLA IA ====== */}
+          {tab === 'ai-console' && (
+            <div className="animate-fade-in">
+              <AIConsole />
             </div>
           )}
         </div>

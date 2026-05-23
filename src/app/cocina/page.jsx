@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, promiseWithTimeout } from '@/lib/supabase';
+import { supabase, persistentQuery } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import OrderCard from '@/components/OrderCard';
@@ -57,31 +57,29 @@ export default function CocinaPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const activePromise = supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .in('status', ['pending', 'preparing'])
-        .order('created_at', { ascending: true });
+      const { data: active } = await persistentQuery(() =>
+        supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .in('status', ['pending', 'preparing'])
+          .order('created_at', { ascending: true })
+      );
 
-      const { data: active, error: activeError } = await promiseWithTimeout(activePromise, 8000);
-
-      if (activeError) throw activeError;
       setOrders(active || []);
 
-      const completedPromise = supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .eq('status', 'ready')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const { data: completed } = await persistentQuery(() =>
+        supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .eq('status', 'ready')
+          .order('created_at', { ascending: false })
+          .limit(10)
+      );
 
-      const { data: completed, error: completedError } = await promiseWithTimeout(completedPromise, 8000);
-
-      if (completedError) throw completedError;
       setCompletedOrders(completed || []);
     } catch (err) {
       console.error('Error cargando pedidos en cocina:', err);
-      setLoadError(err.message || 'Error de conexión con la base de datos (inactividad detectada). Por favor comprueba tu conexión.');
+      setLoadError('No se pudo conectar con la base de datos. Estamos reintentando...');
     } finally {
       setLoading(false);
     }
@@ -125,21 +123,25 @@ export default function CocinaPage() {
     connectRealtime();
 
     const handleReactivation = async () => {
-      console.log('Cocina reactivada (focus/online), validando sesión y refrescando...');
-      try {
-        await supabase.auth.getSession();
-        fetchOrders();
-        connectRealtime();
-      } catch (err) {
-        console.error('Error reactivando cocina:', err);
+      if (document.visibilityState === 'visible') {
+        console.log('Cocina reactivada (visibilidad), validando sesión y refrescando...');
+        try {
+          await supabase.auth.getSession();
+          fetchOrders();
+          connectRealtime();
+        } catch (err) {
+          console.error('Error reactivando cocina:', err);
+        }
       }
     };
 
+    window.addEventListener('visibilitychange', handleReactivation);
     window.addEventListener('focus', handleReactivation);
     window.addEventListener('online', handleReactivation);
 
     return () => {
       if (channel) supabase.removeChannel(channel);
+      window.removeEventListener('visibilitychange', handleReactivation);
       window.removeEventListener('focus', handleReactivation);
       window.removeEventListener('online', handleReactivation);
     };

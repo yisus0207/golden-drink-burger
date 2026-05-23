@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase, promiseWithTimeout } from '@/lib/supabase';
+import { supabase, persistentQuery } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -19,6 +19,7 @@ export default function PedidosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState('');
+  const [orderNotes, setOrderNotes] = useState('');
   const [sending, setSending] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -111,21 +112,26 @@ export default function PedidosPage() {
     connectRealtime();
 
     const handleReactivation = async () => {
-      console.log('Pedidos reactivado (focus/online), validando sesión y refrescando...');
-      try {
-        await supabase.auth.getSession();
-        loadData();
-        connectRealtime();
-      } catch (err) {
-        console.error('Error reactivando pedidos:', err);
+      if (document.visibilityState === 'visible') {
+        console.log('Pedidos reactivado (visibilidad), validando sesión y refrescando...');
+        try {
+          await supabase.auth.getSession();
+          setOrderNotes('');
+          loadData();
+          connectRealtime();
+        } catch (err) {
+          console.error('Error reactivando pedidos:', err);
+        }
       }
     };
 
+    window.addEventListener('visibilitychange', handleReactivation);
     window.addEventListener('focus', handleReactivation);
     window.addEventListener('online', handleReactivation);
 
     return () => {
       if (channel) supabase.removeChannel(channel);
+      window.removeEventListener('visibilitychange', handleReactivation);
       window.removeEventListener('focus', handleReactivation);
       window.removeEventListener('online', handleReactivation);
     };
@@ -157,40 +163,24 @@ export default function PedidosPage() {
   }
 
   async function fetchCategories() {
-    const { data, error } = await promiseWithTimeout(
-      supabase
-        .from('categories')
-        .select('*')
-        .order('id'),
-      8000
+    const { data } = await persistentQuery(() => 
+      supabase.from('categories').select('*').order('id')
     );
-    if (error) throw error;
     setCategories(data || []);
-    if (data?.length > 0) setSelectedCategory(data[0].id);
+    // Ya no forzamos la categoría 0, por defecto queda en 'null' (Todos)
   }
 
   async function fetchTables() {
-    const { data, error } = await promiseWithTimeout(
-      supabase
-        .from('tables')
-        .select('*')
-        .order('id'),
-      8000
+    const { data } = await persistentQuery(() => 
+      supabase.from('tables').select('*').order('id')
     );
-    if (error) throw error;
     setTables(data || []);
   }
 
   async function fetchProducts() {
-    const { data, error } = await promiseWithTimeout(
-      supabase
-        .from('products')
-        .select('*')
-        .eq('available', true)
-        .order('name'),
-      8000
+    const { data } = await persistentQuery(() => 
+      supabase.from('products').select('*').eq('available', true).order('name')
     );
-    if (error) throw error;
     setProducts(data || []);
   }
 
@@ -203,17 +193,17 @@ export default function PedidosPage() {
     return matchesCategory && matchesSearch;
   });
 
-  function addToCart(product) {
+  function addToCart(product, quantity = 1) {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
         return prev.map(item =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity }];
     });
   }
 
@@ -247,6 +237,7 @@ export default function PedidosPage() {
           status: 'pending',
           total,
           table_number: tableNumber,
+          notes: orderNotes,
           created_by: user.id,
         })
         .select()
@@ -272,6 +263,7 @@ export default function PedidosPage() {
       // Limpiar carrito y mostrar éxito
       setCart([]);
       setTableNumber('');
+      setOrderNotes('');
       setIsCartOpen(false); // Cerrar carrito en móvil al enviar
       setSuccessMessage(`✅ Pedido #${order.id} enviado a cocina`);
       setTimeout(() => setSuccessMessage(''), 4000);
@@ -393,7 +385,7 @@ export default function PedidosPage() {
                     <ProductCard
                       key={product.id}
                       product={product}
-                      onAdd={() => addToCart(product)}
+                      onAdd={addToCart}
                     />
                   ))}
                 </div>
@@ -439,6 +431,8 @@ export default function PedidosPage() {
                 tables={tables}
                 tableNumber={tableNumber}
                 onTableNumberChange={setTableNumber}
+                orderNotes={orderNotes}
+                onNotesChange={setOrderNotes}
                 onRemove={removeFromCart}
                 onUpdateQuantity={updateQuantity}
                 onSend={sendOrder}

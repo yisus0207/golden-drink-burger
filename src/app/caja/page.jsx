@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, promiseWithTimeout } from '@/lib/supabase';
+import { supabase, persistentQuery } from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { playRegisterSound, playNotificationSound } from '@/lib/sounds';
@@ -76,16 +76,16 @@ export default function CajaPage() {
     setConnectionError(null);
     try {
       // 1. Pedidos sin pagar
-      const unpaidPromise = supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items(*)
-        `)
-        .eq('payment_status', 'unpaid')
-        .order('created_at', { ascending: false });
-
-      const { data: unpaidData, error: unpaidError } = await promiseWithTimeout(unpaidPromise, 8000);
+      const { data: unpaidData, error: unpaidError } = await persistentQuery(() =>
+        supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items(*)
+          `)
+          .eq('payment_status', 'unpaid')
+          .order('created_at', { ascending: false })
+      );
 
       if (unpaidError) {
         if (unpaidError.code === '42703' || (unpaidError.message && unpaidError.message.includes('payment_status'))) {
@@ -97,17 +97,17 @@ export default function CajaPage() {
       }
 
       // 2. Pedidos pagados recientemente (límite 15 para historial)
-      const paidPromise = supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items(*)
-        `)
-        .eq('payment_status', 'paid')
-        .order('created_at', { ascending: false })
-        .limit(15);
-
-      const { data: paidData, error: paidError } = await promiseWithTimeout(paidPromise, 8000);
+      const { data: paidData, error: paidError } = await persistentQuery(() =>
+        supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items(*)
+          `)
+          .eq('payment_status', 'paid')
+          .order('created_at', { ascending: false })
+          .limit(15)
+      );
 
       if (paidError) {
         if (paidError.code === '42703' || (paidError.message && paidError.message.includes('payment_status'))) {
@@ -121,16 +121,16 @@ export default function CajaPage() {
       // Obtener perfiles de usuarios de forma segura y separada para evitar errores de relación en Supabase
       const allOrders = [...(unpaidData || []), ...(paidData || [])];
       const userIds = [...new Set(allOrders.map(o => o.created_by).filter(Boolean))];
-      
+
       let profilesMap = {};
       if (userIds.length > 0) {
-        const profilesPromise = supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .in('id', userIds);
+        const { data: profilesData, error: profilesError } = await persistentQuery(() =>
+          supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', userIds)
+        );
 
-        const { data: profilesData, error: profilesError } = await promiseWithTimeout(profilesPromise, 8000);
-        
         if (!profilesError && profilesData) {
           profilesData.forEach(p => {
             profilesMap[p.id] = p;
@@ -198,22 +198,24 @@ export default function CajaPage() {
 
     // Cuando el usuario regresa a la app o recupera el internet
     const handleReactivation = async () => {
-      console.log('App reactivada (focus/online), validando sesión y refrescando datos...');
-      try {
-        // Forzar a Supabase a verificar y refrescar la sesión si es necesario
-        await supabase.auth.getSession();
-        fetchOrders();
-        connectRealtime();
-      } catch (err) {
-        console.error('Error reactivando app:', err);
+      if (document.visibilityState === 'visible') {
+        console.log('App reactivada (visibilidad), validando sesión y refrescando datos...');
+        try {
+          await supabase.auth.getSession();
+          fetchOrders();
+          connectRealtime();
+        } catch (err) {
+          console.error('Error reactivando app:', err);
+        }
       }
     };
 
-    window.addEventListener('focus', handleReactivation);
+    window.addEventListener('visibilitychange', handleReactivation);
     window.addEventListener('online', handleReactivation);
 
     return () => {
       if (channel) supabase.removeChannel(channel);
+      window.removeEventListener('visibilitychange', handleReactivation);
       window.removeEventListener('focus', handleReactivation);
       window.removeEventListener('online', handleReactivation);
     };
@@ -343,15 +345,16 @@ export default function CajaPage() {
         <body>
           <div class="center">
             <span class="bold" style="font-size: 16px;">GOLDEN DRINK & BURGER</span><br/>
-            <span>NIT: 901.456.789-2</span><br/>
-            <span>Dirección: Av. Principal N° 123</span><br/>
-            <span>Tel: +57 (321) 456-7890</span><br/>
+            <span>NIT: 222.222.222-2</span><br/>
+            <span>Av. del rio, aleta del tiburon, barranquilla</span><br/>
+            <span>Tel: +57 (300) 256-7851</span><br/>
             <div class="divider"></div>
             <span class="bold">FACTURA DE VENTA</span><br/>
             <span>Pedido: #${selectedOrder.id}</span><br/>
             <span>Mesa: ${selectedOrder.table_number || 'Para Llevar'}</span><br/>
             <span>Fecha: ${formattedDate}</span><br/>
             <span>Atendido por: ${selectedOrder.profiles?.full_name || 'Personal'}</span><br/>
+            ${selectedOrder.notes ? `<div style="font-size: 10px; margin-top: 5px; font-style: italic;">Nota: ${selectedOrder.notes}</div>` : ''}
             <div class="divider"></div>
           </div>
           <table>
@@ -366,17 +369,26 @@ export default function CajaPage() {
             </tbody>
           </table>
           <div class="divider"></div>
-          <div style="display: flex; justify-content: space-between;" class="bold">
-            <span>TOTAL:</span>
-            <span>$${parseFloat(selectedOrder.total).toLocaleString('es-CO')}</span>
-          </div>
-          <div class="divider"></div>
-          <div class="center">
-            <div class="stamp">★ FACTURA PAGADA ★<br/>Vía: ${selectedOrder.payment_method?.toUpperCase()}</div>
-            <br/><br/>
-            <span>¡Gracias por su visita!</span><br/>
-            <span>Disfrute su comida.</span>
-          </div>
+            <div class="divider"></div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <span>Subtotal:</span>
+              <span>$${(selectedOrder.total / 1.19).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+              <span>IVA (19%):</span>
+              <span>$${(selectedOrder.total - (selectedOrder.total / 1.19)).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; margin-top: 5px;" class="bold">
+              <span>TOTAL:</span>
+              <span>$${parseFloat(selectedOrder.total).toLocaleString('es-CO')}</span>
+            </div>
+            <div class="divider"></div>
+            <div class="center">
+              <div class="stamp">★ PAGADO ★<br/>Vía: ${selectedOrder.payment_method?.toUpperCase()}</div>
+              <br/><br/>
+              <span>¡Gracias por su visita!</span><br/>
+              <span style="font-size: 10px; color: #666; display: block; margin-top: 10px;">SISTEMA KOVEN - GOLDEN DRINK</span>
+            </div>
           <script>
             window.onload = function() {
               window.print();
@@ -509,10 +521,10 @@ export default function CajaPage() {
                       <span className="w-5 h-5 rounded-full bg-gold/20 flex items-center justify-center text-[10px] text-gold font-mono">1</span>
                       Abre el panel de control de Supabase:
                     </p>
-                    <a 
-                      href="https://supabase.com/dashboard" 
-                      target="_blank" 
-                      rel="noreferrer" 
+                    <a
+                      href="https://supabase.com/dashboard"
+                      target="_blank"
+                      rel="noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs text-gold hover:underline bg-gold/10 px-3 py-1.5 rounded-xl border border-gold/25 font-bold transition-all ml-7"
                     >
                       Ir a Supabase Dashboard ↗
@@ -769,7 +781,7 @@ export default function CajaPage() {
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none select-none">
                       {selectedOrder.payment_status === 'paid' ? (
                         <div className="border-4 double border-emerald-600/70 text-emerald-600/70 text-center uppercase tracking-widest font-black p-3 text-lg border-double rotate-[15deg] whitespace-nowrap scale-110 bg-[#FDFBF7]/85 shadow-md rounded animate-fade-in">
-                          ★ COBRADO ★
+                          ★ PAGADO ★
                           <div className="text-[9px] font-medium tracking-normal mt-0.5">
                             {selectedOrder.payment_method?.toUpperCase()} • {formatDate(selectedOrder.updated_at || selectedOrder.created_at)}
                           </div>
@@ -785,11 +797,11 @@ export default function CajaPage() {
                     {/* Receipt Body */}
                     <div className="text-center mb-4">
                       <span className="font-bold text-sm block">🍔 GOLDEN DRINK & BURGER 🍔</span>
-                      <span className="text-[10px] text-gray-500 block">NIT: 901.456.789-2</span>
-                      <span className="text-[10px] text-gray-500 block">Calle 45 #89-02, Bogotá</span>
-                      <span className="text-[10px] text-gray-500 block">Teléfono: +57 (321) 456-7890</span>
+                      <span className="text-[10px] text-gray-500 block">NIT: 222.222.222-2</span>
+                      <span className="text-[10px] text-gray-500 block">Av. del rio, aleta del tiburon, barranquilla</span>
+                      <span className="text-[10px] text-gray-500 block">Teléfono: +57 (300) 256-7851</span>
                       <div className="border-b border-dashed border-gray-400 my-2"></div>
-                      <span className="font-bold block text-sm">FACTURA DE VENTA DE CAJA</span>
+                      <span className="font-bold block text-sm">FACTURA DE VENTA</span>
                       <span className="block mt-1">Pedido N° {selectedOrder.id}</span>
                     </div>
 
@@ -807,6 +819,12 @@ export default function CajaPage() {
                         <span>MESERO:</span>
                         <span className="uppercase">{selectedOrder.profiles?.full_name || 'DESCONOCIDO'}</span>
                       </div>
+                      {selectedOrder.notes && (
+                        <div className="flex flex-col mt-1 p-1 bg-black/[0.03] border-l-2 border-gold/30">
+                          <span className="text-[9px] font-bold text-gold">NOTA:</span>
+                          <span className="italic leading-tight">"{selectedOrder.notes}"</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span>ESTADO PREP:</span>
                         <span className="font-bold">{getPrepLabel(selectedOrder.status).toUpperCase()}</span>
@@ -845,16 +863,16 @@ export default function CajaPage() {
                     {/* Totales */}
                     <div className="space-y-1.5 font-bold text-xs">
                       <div className="flex justify-between font-normal text-[10px] text-gray-600">
-                        <span>Subtotal Neto:</span>
-                        <span>${(parseFloat(selectedOrder.total) * 0.92).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+                        <span>Subtotal:</span>
+                        <span>$ {(selectedOrder.total / 1.19).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between font-normal text-[10px] text-gray-600">
-                        <span>Impoconsumo (8% incl.):</span>
-                        <span>${(parseFloat(selectedOrder.total) * 0.08).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
+                        <span>IVA (19%):</span>
+                        <span>$ {(selectedOrder.total - (selectedOrder.total / 1.19)).toLocaleString('es-CO', { maximumFractionDigits: 0 })}</span>
                       </div>
-                      <div className="flex justify-between text-sm border-t border-dashed border-gray-400 pt-2 font-black text-black">
+                      <div className="flex justify-between text-base pt-1 border-t border-dashed border-gray-300 mt-1">
                         <span>TOTAL A PAGAR:</span>
-                        <span>${parseFloat(selectedOrder.total).toLocaleString('es-CO')} COP</span>
+                        <span>$ {parseFloat(selectedOrder.total).toLocaleString('es-CO')}</span>
                       </div>
                     </div>
 
@@ -864,7 +882,7 @@ export default function CajaPage() {
                     <div className="text-center text-[9px] text-gray-500 space-y-1">
                       <span>¡GRACIAS POR TU PREFERENCIA!</span>
                       <span className="block">Propina voluntaria no incluida en la factura.</span>
-                      <span className="block font-bold">SISTEMA POS - GOLDEN DRINK</span>
+                      <span className="block font-bold">SISTEMA KOVEN - GOLDEN DRINK</span>
                     </div>
                   </div>
 

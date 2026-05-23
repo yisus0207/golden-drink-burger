@@ -13,18 +13,20 @@ export const createTempClient = () => createClient(supabaseUrl, supabaseAnonKey,
   }
 });
 
-export function promiseWithTimeout(promise, ms = 8000) {
-  let timeoutId;
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => {
-      const err = new Error('Timeout de conexión con la base de datos (inactividad detectada). Por favor, comprueba tu conexión o refresca.');
-      err.name = 'TimeoutError';
-      reject(err);
-    }, ms);
-  });
-
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    clearTimeout(timeoutId);
-  });
+// Función de consulta persistente (Patrón de grandes empresas: Reintento con Backoff)
+export async function persistentQuery(queryFn, maxRetries = 3) {
+  let delay = 1000;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const result = await queryFn();
+      if (result.error) throw result.error;
+      return result;
+    } catch (err) {
+      if (i === maxRetries - 1) throw err;
+      console.warn(`[Network] Fallo detectado. Reintentando en ${delay}ms...`, err);
+      await new Promise(res => setTimeout(res, delay));
+      delay *= 2; // Backoff exponencial
+    }
+  }
 }
 

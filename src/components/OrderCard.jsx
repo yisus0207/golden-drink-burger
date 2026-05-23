@@ -61,6 +61,16 @@ export default function OrderCard({ order, onStatusChange }) {
             </span>
           </div>
         ))}
+
+        {/* Notas del pedido */}
+        {order.notes && (
+          <div className="mt-3 p-2.5 bg-black/40 border border-gold/20 rounded-lg">
+            <p className="text-[10px] text-gold font-bold uppercase mb-1 flex items-center gap-1">
+               📝 Nota:
+            </p>
+            <p className="text-xs text-white italic">"{order.notes}"</p>
+          </div>
+        )}
       </div>
 
       {/* Time + Total */}

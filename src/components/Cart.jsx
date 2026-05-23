@@ -1,6 +1,6 @@
 'use client';
 
-export default function Cart({ items, total, tables = [], tableNumber, onTableNumberChange, onRemove, onUpdateQuantity, onSend, sending }) {
+export default function Cart({ items, total, tables = [], tableNumber, onTableNumberChange, orderNotes = '', onNotesChange, onRemove, onUpdateQuantity, onSend, sending }) {
   return (
     <div className="w-full h-full flex flex-col bg-dark-card lg:border-l border-dark-border">
       {/* Header */}
@@ -68,29 +68,38 @@ export default function Cart({ items, total, tables = [], tableNumber, onTableNu
 
       {/* Opciones Adicionales (Mesa) */}
       {items.length > 0 && (
-        <div className="px-5 pt-3 pb-2 border-t border-dark-border">
-          <label className="block text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wide">
-            Selecciona la Mesa
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {tables.map(t => (
-              <button
-                key={t.id}
-                onClick={() => onTableNumberChange(t.name)}
-                className={`py-3 rounded-xl text-sm font-bold transition-all border ${
-                  tableNumber === t.name
-                    ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(255,215,0,0.3)] scale-105'
-                    : 'bg-dark-surface text-gray-400 border-dark-border hover:border-gold/50 hover:text-white'
-                }`}
-              >
-                {t.name.replace('Mesa ', '')}
-              </button>
-            ))}
-            {tables.length === 0 && (
-              <p className="col-span-4 text-xs text-gray-500 text-center py-2">
-                No hay mesas configuradas. Añádelas desde admin.
-              </p>
-            )}
+        <div className="px-5 py-3 border-t border-dark-border space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">
+              📍 Mesa
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {tables.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => onTableNumberChange(t.name)}
+                  className={`py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                    tableNumber === t.name
+                      ? 'bg-gold text-black border-gold shadow-[0_0_15px_rgba(255,215,0,0.3)] scale-105'
+                      : 'bg-dark-surface text-gray-400 border-dark-border hover:border-gold/50 hover:text-white'
+                  }`}
+                >
+                  {t.name.replace('Mesa ', '')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">
+              📝 Nota / Comentario para cocina
+            </label>
+            <textarea
+              value={orderNotes}
+              onChange={(e) => onNotesChange(e.target.value)}
+              placeholder="Ej: Término medio, sin cebolla, etc..."
+              className="w-full bg-dark-surface border border-dark-border rounded-xl p-3 text-sm text-white focus:outline-none focus:border-gold/50 transition-all resize-none placeholder:text-gray-700 h-20"
+            />
           </div>
         </div>
       )}

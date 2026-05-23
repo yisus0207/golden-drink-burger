@@ -38,8 +38,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     const verifySession = async () => {
       if (user) {
         try {
-          // Intentar verificar la sesión con un timeout rápido de 3 segundos
-          const { data: { session } } = await promiseWithTimeout(supabase.auth.getSession(), 3000);
+          // Verificación de sesión nativa (sin bloqueos de tiempo artificiales)
+          const { data: { session } } = await supabase.auth.getSession();
           if (!session) {
             console.warn('[ProtectedRoute] Sesión expirada o nula. Redirigiendo a login.');
             router.push('/login');
